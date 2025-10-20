@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import timedelta
+import os
 
 from app.database import get_db, User, AdminUser, BetaCode
 from app.models.auth import UserLoginRequest, AuthResponse, UserResponse, UserSignupRequest
@@ -223,3 +224,33 @@ async def init_admin(db: Session = Depends(get_db)):
         print(f"❌ Error creating admin user: {e}")
         db.rollback()
         return {"message": f"Error creating admin user: {str(e)}", "status": "error"}
+
+@router.get("/test-db")
+async def test_database(db: Session = Depends(get_db)):
+    """Test database connection and show info"""
+    try:
+        # Test basic connection
+        result = db.execute("SELECT 1 as test").fetchone()
+        
+        # Check if tables exist
+        admin_count = db.query(AdminUser).count()
+        user_count = db.query(User).count()
+        beta_count = db.query(BetaCode).count()
+        
+        # Get database URL info
+        database_url = os.getenv("DATABASE_URL", "Not set")
+        
+        return {
+            "database_connection": "success",
+            "database_url": database_url[:20] + "..." if len(database_url) > 20 else database_url,
+            "admin_users": admin_count,
+            "regular_users": user_count,
+            "beta_codes": beta_count,
+            "test_query": result[0] if result else None
+        }
+    except Exception as e:
+        return {
+            "database_connection": "failed",
+            "error": str(e),
+            "database_url": os.getenv("DATABASE_URL", "Not set")
+        }
