@@ -141,8 +141,8 @@ async def signup(request: UserSignupRequest, db: Session = Depends(get_db)):
         password_hash=hashed_password,
         name=request.name,
         company=request.company,
-        is_active=True,
-        is_admin=False
+        beta_code=request.beta_code,
+        is_active=True
     )
     
     db.add(new_user)
