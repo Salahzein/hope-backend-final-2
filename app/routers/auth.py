@@ -168,3 +168,58 @@ async def signup(request: UserSignupRequest, db: Session = Depends(get_db)):
     
     print(f"🔍 SIGNUP DEBUG: Signup response created successfully")
     return response
+
+@router.post("/init-admin")
+async def init_admin(db: Session = Depends(get_db)):
+    """Initialize admin user in database (one-time setup)"""
+    
+    print(f"🔧 INIT ADMIN: Attempting to initialize admin user")
+    
+    # Check if admin user already exists
+    existing_admin = db.query(AdminUser).filter(AdminUser.email == "szzein2005@gmail.com").first()
+    if existing_admin:
+        return {"message": "Admin user already exists", "status": "success"}
+    
+    try:
+        # Create admin user
+        hashed_password = get_password_hash("Plokplok1")
+        admin_user = AdminUser(
+            email="szzein2005@gmail.com",
+            password_hash=hashed_password,
+            name="Salah Zein",
+            is_active=True
+        )
+        
+        db.add(admin_user)
+        db.commit()
+        db.refresh(admin_user)
+        
+        print(f"✅ Admin user created successfully: {admin_user.email}")
+        
+        # Create initial beta codes
+        beta_codes = ["ADMIN2024", "HOPE2024", "BETA2024"]
+        for code in beta_codes:
+            # Check if beta code already exists
+            existing_code = db.query(BetaCode).filter(BetaCode.code == code).first()
+            if not existing_code:
+                beta_code = BetaCode(
+                    code=code,
+                    is_used=False,
+                    created_by_admin_id=admin_user.id
+                )
+                db.add(beta_code)
+                print(f"✅ Beta code created: {code}")
+        
+        db.commit()
+        
+        return {
+            "message": "Admin user and beta codes created successfully",
+            "status": "success",
+            "admin_email": "szzein2005@gmail.com",
+            "beta_codes": beta_codes
+        }
+        
+    except Exception as e:
+        print(f"❌ Error creating admin user: {e}")
+        db.rollback()
+        return {"message": f"Error creating admin user: {str(e)}", "status": "error"}
