@@ -287,6 +287,7 @@ async def generate_beta_codes(
                 code=code,
                 is_used=False,
                 used_by_user_id=None,
+                created_by_admin_id=current_admin.id,
                 used_at=None
             )
             db.add(beta_code)
