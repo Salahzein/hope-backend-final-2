@@ -7,11 +7,15 @@ from sqlalchemy.orm import Session
 from typing import Optional
 import logging
 
-from app.database import get_db, AdminUser
+from app.database import get_db, AdminUser, BetaCode
 from app.utils.metrics_calculator import MetricsCalculator
 from app.utils.cost_calculator import get_user_usage_summary
 from app.database import User, SearchMetrics
+from app.models.auth import GenerateBetaCodeRequest, GenerateBetaCodeResponse
+from app.core.auth import get_current_admin
 from datetime import datetime, timedelta
+import secrets
+import string
 
 logger = logging.getLogger(__name__)
 
@@ -258,3 +262,82 @@ async def admin_health_check(db: Session = Depends(get_db)):
             "error": str(e),
             "timestamp": datetime.utcnow().isoformat()
         }
+
+@router.post("/generate-beta-codes", response_model=GenerateBetaCodeResponse)
+async def generate_beta_codes(
+    request: GenerateBetaCodeRequest,
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin)
+):
+    """Generate new beta codes (admin only)"""
+    try:
+        codes = []
+        for _ in range(request.quantity):
+            # Generate a random beta code
+            code = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+            code = f"HOPE-{code}"
+            
+            # Ensure code is unique
+            while db.query(BetaCode).filter(BetaCode.code == code).first():
+                code = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+                code = f"HOPE-{code}"
+            
+            # Create beta code
+            beta_code = BetaCode(
+                code=code,
+                is_used=False,
+                used_by_user_id=None,
+                used_at=None
+            )
+            db.add(beta_code)
+            codes.append(code)
+        
+        db.commit()
+        
+        return GenerateBetaCodeResponse(
+            codes=codes,
+            message=f"Generated {len(codes)} beta codes successfully"
+        )
+        
+    except Exception as e:
+        logger.error(f"Error generating beta codes: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/users")
+async def get_all_users(
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin)
+):
+    """Get all users (admin only)"""
+    try:
+        users = db.query(User).all()
+        return [{
+            "email": user.email,
+            "name": user.name,
+            "company": user.company,
+            "is_admin": user.is_admin,
+            "is_active": user.is_active,
+            "created_at": user.created_at
+        } for user in users]
+    except Exception as e:
+        logger.error(f"Error getting users: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/beta-codes")
+async def get_beta_codes(
+    db: Session = Depends(get_db),
+    current_admin: AdminUser = Depends(get_current_admin)
+):
+    """Get all beta codes (admin only)"""
+    try:
+        beta_codes = db.query(BetaCode).all()
+        return [{
+            "code": bc.code,
+            "is_used": bc.is_used,
+            "used_by_user_id": bc.used_by_user_id,
+            "used_at": bc.used_at,
+            "created_at": bc.created_at
+        } for bc in beta_codes]
+    except Exception as e:
+        logger.error(f"Error getting beta codes: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

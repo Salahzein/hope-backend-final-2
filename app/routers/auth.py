@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import timedelta
 
-from app.database import get_db, User, AdminUser
-from app.models.auth import UserLoginRequest, AuthResponse, UserResponse
-from app.core.auth import verify_password, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
+from app.database import get_db, User, AdminUser, BetaCode
+from app.models.auth import UserLoginRequest, AuthResponse, UserResponse, UserSignupRequest
+from app.core.auth import verify_password, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES, get_password_hash
 
 router = APIRouter()
 
@@ -103,4 +103,68 @@ async def admin_login(request: UserLoginRequest, db: Session = Depends(get_db)):
     }
     
     print(f"🔍 ADMIN LOGIN DEBUG: Admin response created successfully")
+    return response
+
+@router.post("/signup", response_model=AuthResponse)
+async def signup(request: UserSignupRequest, db: Session = Depends(get_db)):
+    """Create new user account with beta code validation"""
+    
+    print(f"🔍 SIGNUP DEBUG: Attempting signup for email: {request.email}")
+    
+    # Check if user already exists
+    existing_user = db.query(User).filter(User.email == request.email).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+    
+    # Validate beta code
+    beta_code = db.query(BetaCode).filter(BetaCode.code == request.beta_code).first()
+    if not beta_code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid beta code"
+        )
+    
+    if beta_code.is_used:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Beta code already used"
+        )
+    
+    # Create new user
+    hashed_password = get_password_hash(request.password)
+    new_user = User(
+        email=request.email,
+        password_hash=hashed_password,
+        name=request.name,
+        company=request.company,
+        is_active=True,
+        is_admin=False
+    )
+    
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    
+    # Mark beta code as used
+    beta_code.is_used = True
+    beta_code.used_by_user_id = str(new_user.id)
+    db.commit()
+    
+    print(f"🔍 SIGNUP DEBUG: User created successfully: {new_user.email}")
+    
+    # Create access token
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": new_user.email}, expires_delta=access_token_expires
+    )
+    
+    response = {
+        "access_token": access_token,
+        "user": UserResponse.model_validate(new_user).model_dump()
+    }
+    
+    print(f"🔍 SIGNUP DEBUG: Signup response created successfully")
     return response
