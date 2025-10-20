@@ -229,28 +229,31 @@ async def init_admin(db: Session = Depends(get_db)):
 async def test_database(db: Session = Depends(get_db)):
     """Test database connection and show info"""
     try:
+        # Get database URL info first
+        database_url = os.getenv("DATABASE_URL", "Not set")
+        
         # Test basic connection
-        result = db.execute("SELECT 1 as test").fetchone()
+        from sqlalchemy import text
+        result = db.execute(text("SELECT 1 as test")).fetchone()
         
         # Check if tables exist
         admin_count = db.query(AdminUser).count()
         user_count = db.query(User).count()
         beta_count = db.query(BetaCode).count()
         
-        # Get database URL info
-        database_url = os.getenv("DATABASE_URL", "Not set")
-        
         return {
             "database_connection": "success",
-            "database_url": database_url[:20] + "..." if len(database_url) > 20 else database_url,
+            "database_url": database_url[:30] + "..." if len(database_url) > 30 else database_url,
             "admin_users": admin_count,
             "regular_users": user_count,
             "beta_codes": beta_count,
-            "test_query": result[0] if result else None
+            "test_query": result[0] if result else None,
+            "database_type": "PostgreSQL" if database_url.startswith("postgresql://") else "SQLite"
         }
     except Exception as e:
         return {
             "database_connection": "failed",
             "error": str(e),
-            "database_url": os.getenv("DATABASE_URL", "Not set")
+            "database_url": os.getenv("DATABASE_URL", "Not set"),
+            "database_type": "Unknown"
         }
