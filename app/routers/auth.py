@@ -258,6 +258,38 @@ async def test_database(db: Session = Depends(get_db)):
             "database_type": "Unknown"
         }
 
+@router.post("/demo-login")
+async def demo_login():
+    """Demo login endpoint - bypasses authentication for demo purposes"""
+    
+    print(f"🔍 DEMO LOGIN: Creating demo user access")
+    
+    # Create demo access token (no authentication required)
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": "demo@demo.com"}, expires_delta=access_token_expires
+    )
+    
+    # Create demo user response
+    demo_user = {
+        "id": 999,
+        "email": "demo@demo.com",
+        "name": "Demo User",
+        "company": "Demo Company",
+        "beta_code": "DEMO-CODE",
+        "is_active": True,
+        "created_at": datetime.utcnow().isoformat()
+    }
+    
+    response = {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": demo_user
+    }
+    
+    print(f"🔍 DEMO LOGIN: Demo access created successfully")
+    return response
+
 @router.post("/reset-admin")
 async def reset_admin_user(db: Session = Depends(get_db)):
     """Reset admin user with correct credentials"""
