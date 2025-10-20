@@ -257,3 +257,44 @@ async def test_database(db: Session = Depends(get_db)):
             "database_url": os.getenv("DATABASE_URL", "Not set"),
             "database_type": "Unknown"
         }
+
+@router.post("/reset-admin")
+async def reset_admin_user(db: Session = Depends(get_db)):
+    """Reset admin user with correct credentials"""
+    
+    print(f"🔧 RESET ADMIN: Resetting admin user credentials")
+    
+    try:
+        # Delete existing admin user
+        existing_admin = db.query(AdminUser).filter(AdminUser.email == "szzein2005@gmail.com").first()
+        if existing_admin:
+            db.delete(existing_admin)
+            db.commit()
+            print(f"✅ Deleted existing admin user")
+        
+        # Create new admin user with correct password
+        hashed_password = get_password_hash("Plokplok1")
+        admin_user = AdminUser(
+            email="szzein2005@gmail.com",
+            password_hash=hashed_password,
+            name="Salah Zein",
+            is_active=True
+        )
+        
+        db.add(admin_user)
+        db.commit()
+        db.refresh(admin_user)
+        
+        print(f"✅ Admin user reset successfully: {admin_user.email}")
+        
+        return {
+            "message": "Admin user reset successfully",
+            "status": "success",
+            "admin_email": "szzein2005@gmail.com",
+            "admin_id": admin_user.id
+        }
+        
+    except Exception as e:
+        print(f"❌ Error resetting admin user: {e}")
+        db.rollback()
+        return {"message": f"Error resetting admin user: {str(e)}", "status": "error"}
