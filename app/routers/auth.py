@@ -151,7 +151,7 @@ async def signup(request: UserSignupRequest, db: Session = Depends(get_db)):
     
     # Mark beta code as used
     beta_code.is_used = True
-    beta_code.used_by_user_id = str(new_user.id)
+    beta_code.used_by_user_id = new_user.id
     db.commit()
     
     print(f"🔍 SIGNUP DEBUG: User created successfully: {new_user.email}")
