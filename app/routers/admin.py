@@ -19,7 +19,7 @@ import string
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/admin", tags=["admin"])
+router = APIRouter(tags=["admin"])
 
 @router.get("/metrics/platform")
 async def get_platform_metrics(
