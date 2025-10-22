@@ -1,5 +1,6 @@
 import re
 import logging
+import random
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 from app.models.lead import Lead
@@ -138,6 +139,8 @@ class LeadFilter:
                 logger.info(f"💰 OPENAI METRICS: {metrics}")
                 # Store metrics for later retrieval
                 self._last_metrics = metrics
+                # Shuffle results for variety
+                random.shuffle(result)
                 return result
             elif self.use_improved_ai:
                 logger.info("🚀 USING: Rule-based AI enhancer (IMPROVED mode)")
@@ -151,6 +154,8 @@ class LeadFilter:
                     "posts_analyzed": len(time_filtered_posts),
                     "results_returned": len(result)
                 }
+                # Shuffle results for variety
+                random.shuffle(result)
                 return result
             else:
                 logger.info("🚀 USING: Original simple filtering system (HIGH QUALITY)")
@@ -164,6 +169,8 @@ class LeadFilter:
                     "posts_analyzed": len(time_filtered_posts),
                     "results_returned": len(result)
                 }
+                # Shuffle results for variety
+                random.shuffle(result)
                 return result
             
         except Exception as e:
@@ -180,6 +187,8 @@ class LeadFilter:
                 "posts_analyzed": len(posts),
                 "results_returned": len(fallback_result)
             }
+            # Shuffle results for variety
+            random.shuffle(fallback_result)
             return fallback_result
     
     def get_last_metrics(self) -> Optional[Dict[str, Any]]:
