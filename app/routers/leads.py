@@ -160,7 +160,7 @@ async def search_leads(request: LeadSearchRequest, db: Session = Depends(get_db)
                 time_range="all_time"  # Fixed time range for beta
             )
             
-            logger.info(f"Fetched {len(posts)} total posts from Reddit")
+        logger.info(f"Fetched {len(posts)} total posts from Reddit")
             
             # Filter posts using fast lead filter
             leads, filter_metrics = lead_filter.filter_posts(posts, request.problem_description, business_type)
