@@ -4,15 +4,10 @@ from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
 import os
 
-# Database URL - using PostgreSQL from Railway
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./reddit_lead_finder.db")
+# Database URL - using SQLite for simplicity
+DATABASE_URL = "sqlite:///./reddit_lead_finder.db"
 
-# Handle both PostgreSQL and SQLite
-if DATABASE_URL.startswith("postgresql://"):
-    engine = create_engine(DATABASE_URL)
-else:
-    # Fallback to SQLite with connect_args
-    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
@@ -31,6 +26,7 @@ class User(Base):
     posts_analyzed = Column(Integer, default=0)  # Track total posts analyzed by user
     total_tokens_used = Column(Integer, default=0)  # Track total OpenAI tokens used
     total_cost = Column(Float, default=0.0)  # Track total cost incurred
+    last_search_time = Column(Float, default=0.0)  # Track last search time for rate limiting
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
