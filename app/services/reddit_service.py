@@ -1,6 +1,7 @@
 import praw
 import time
 import logging
+import random
 from typing import List, Dict, Any, Optional
 from concurrent.futures import ThreadPoolExecutor
 from app.core.config import settings
@@ -27,6 +28,41 @@ class RedditService:
             logger.info(f"Rate limiting: sleeping for {sleep_time:.2f} seconds")
             time.sleep(sleep_time)
         self.last_request_time = time.time()
+    
+    def _generate_query_variations(self, query: str) -> List[str]:
+        """Generate variations of the search query for better diversity"""
+        variations = [query]  # Always include original query
+        
+        # Add common variations
+        query_lower = query.lower()
+        
+        # Add synonyms and variations
+        if "looking for" in query_lower:
+            variations.append(query_lower.replace("looking for", "need"))
+            variations.append(query_lower.replace("looking for", "want"))
+        if "need" in query_lower:
+            variations.append(query_lower.replace("need", "looking for"))
+        if "want" in query_lower:
+            variations.append(query_lower.replace("want", "looking for"))
+            
+        # Add question variations
+        if not query.endswith("?"):
+            variations.append(query + "?")
+            variations.append("how to " + query_lower)
+            variations.append("best " + query_lower)
+        
+        # Add time-based variations
+        variations.append(query + " recent")
+        variations.append(query + " 2024")
+        
+        # Remove duplicates and limit to 3 variations
+        unique_variations = list(dict.fromkeys(variations))[:3]
+        
+        # Shuffle to get different results each time
+        random.shuffle(unique_variations)
+        
+        logger.info(f"🔄 QUERY VARIATIONS: Generated {len(unique_variations)} variations for '{query}'")
+        return unique_variations
     
     def get_business_subreddits(self) -> List[str]:
         """Return predefined list of business-related subreddits"""
@@ -150,14 +186,19 @@ class RedditService:
         logger.info(f"🚀 PARALLEL SCRAPING: Starting parallel fetch from {len(subreddit_names)} subreddits")
         all_posts = []
         
+        # Generate query variations for better diversity
+        query_variations = self._generate_query_variations(query) if query else [""]
+        
         # Use ThreadPoolExecutor to run subreddits in parallel
         with ThreadPoolExecutor(max_workers=3) as executor:
-            # Submit all subreddit scraping tasks
+            # Submit all subreddit scraping tasks with query variations
             futures = []
             for subreddit_name in subreddit_names:
+                # Use different query variations for different subreddits
+                query_to_use = random.choice(query_variations) if query_variations else ""
                 future = executor.submit(
                     self.fetch_posts_with_multiple_methods, 
-                    subreddit_name, query, limit_per_sub, time_range
+                    subreddit_name, query_to_use, limit_per_sub, time_range
                 )
                 futures.append((subreddit_name, future))
             
