@@ -250,23 +250,19 @@ class RedditService:
                 except Exception as e:
                     logger.warning(f"❌ TOP method (all) failed: {e}")
             
-            # If we don't have enough posts, try search API variations
+            # If we don't have enough posts, try search API with original query
             if len(all_posts) < limit and query.strip():
-                search_variations = self._generate_search_variations(query)
-                for variation in search_variations[:2]:  # Try top 2 variations
-                    if len(all_posts) >= limit:
-                        break
-                    try:
-                        self._rate_limit()
-                        # Set current time range for search API to use
-                        self._current_time_range = time_range
-                        search_posts = self.fetch_posts_search_api(subreddit_name, variation, min(10, limit - len(all_posts)))
-                        for post in search_posts:
-                            if not any(p['id'] == post['id'] for p in all_posts):
-                                all_posts.append(post)
-                        logger.info(f"✅ SEARCH variation '{variation}': Found {len(search_posts)} new posts")
-                    except Exception as e:
-                        logger.warning(f"❌ SEARCH variation '{variation}' failed: {e}")
+                try:
+                    self._rate_limit()
+                    # Set current time range for search API to use
+                    self._current_time_range = time_range
+                    search_posts = self.fetch_posts_search_api(subreddit_name, query, min(10, limit - len(all_posts)))
+                    for post in search_posts:
+                        if not any(p['id'] == post['id'] for p in all_posts):
+                            all_posts.append(post)
+                    logger.info(f"✅ SEARCH API with original query: Found {len(search_posts)} new posts")
+                except Exception as e:
+                    logger.warning(f"❌ SEARCH API failed: {e}")
             
             logger.info(f"🎯 MULTIPLE METHODS RESULT: {len(all_posts)} total unique posts from r/{subreddit_name} (time_range: {time_range})")
             return all_posts[:limit]
@@ -275,21 +271,7 @@ class RedditService:
             logger.error(f"❌ MULTIPLE METHODS failed for r/{subreddit_name}: {e}")
             return []
     
-    def _generate_search_variations(self, query: str) -> List[str]:
-        """Generate search query variations for better coverage"""
-        variations = [query]  # Original query first
-        
-        # Add variations with different keywords
-        words = query.lower().split()
-        if len(words) > 1:
-            # Try with "help" added
-            variations.append(f"{query} help")
-            # Try with "struggling" added
-            variations.append(f"{query} struggling")
-            # Try with "problem" added
-            variations.append(f"{query} problem")
-        
-        return variations[:5]  # Limit to 5 variations
+# Search variations method removed - using original query only for consistent quality
     
     def _post_matches_query(self, post, query: str) -> bool:
         """Check if a post matches the search query"""
@@ -406,4 +388,3 @@ class RedditService:
         
         logger.info(f"🕒 TIME FILTER: {len(posts)} posts -> {len(filtered_posts)} posts (time_range: {time_range})")
         return filtered_posts
-
