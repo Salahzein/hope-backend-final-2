@@ -9,7 +9,7 @@ from app.services.reddit_service import RedditService
 from app.services.fast_lead_filter import FastLeadFilter
 from app.services.business_mapping import get_business_options as get_business_mapping_options, get_industry_options as get_industry_mapping_options
 from app.services.tiered_subreddit_mapping import get_beta_subreddits, get_beta_info
-from app.services.result_cache import result_cache
+# Cache removed for unique results
 from app.models.lead import Lead
 from app.database import get_db, User, SearchMetrics
 from app.utils.cost_calculator import get_posts_to_scrape, validate_user_limits, get_user_usage_summary
@@ -108,6 +108,21 @@ async def search_leads(request: LeadSearchRequest, db: Session = Depends(get_db)
                 
                 results_remaining = remaining_results
                 posts_remaining = remaining_posts
+                
+                # Check search rate limit (1 search per minute)
+                current_time = time.time()
+                if hasattr(user, 'last_search_time') and user.last_search_time:
+                    time_since_last_search = current_time - user.last_search_time
+                    if time_since_last_search < 60:  # 60 seconds = 1 minute
+                        remaining_wait = 60 - time_since_last_search
+                        raise HTTPException(
+                            status_code=429, 
+                            detail=f"Search rate limit: Please wait {int(remaining_wait)} seconds before your next search"
+                        )
+                
+                # Update last search time
+                user.last_search_time = current_time
+                db.commit()
         except (ValueError, TypeError):
             # Invalid user_id format, continue as anonymous user
             pass
@@ -134,34 +149,13 @@ async def search_leads(request: LeadSearchRequest, db: Session = Depends(get_db)
         # Initialize filter_metrics to avoid NameError
         filter_metrics = None
         
-        # Check cache first
-        cached_result = result_cache.get_cached_results(
-            request.problem_description, 
-            business_type, 
-            "all_time",  # Fixed time range for beta
-            request.user_id or "anonymous",
-            request.result_count  # Include result_count in cache key
-        )
-        
-        if cached_result is not None:
-            # Return cached results
-            leads, result_age_hours = cached_result
-            logger.info(f"📦 Using cached results (age: {result_age_hours:.1f} hours)")
-            # Set default metrics for cached results
-            filter_metrics = {
-                "tokens_used": 0,
-                "cost": 0.0,
-                "model_used": "cached",
-                "posts_analyzed": 0,
-                "results_returned": len(leads)
-            }
-        else:
-            # Fetch fresh results with calculated posts needed
-            posts_per_sub = max(1, posts_needed // len(subreddits))  # Distribute posts across subreddits
-            logger.info(f"🔄 Fetching fresh results from Reddit: {posts_needed} total posts ({posts_per_sub} per sub)")
-            posts = reddit_service.fetch_posts_from_multiple_subreddits(
-                subreddits, 
-                query=request.problem_description,
+        # Fetch fresh results (no caching for unique results)
+        logger.info("🔄 Fetching fresh results (cache disabled for diversity)")
+        posts_per_sub = max(1, posts_needed // len(subreddits))  # Distribute posts across subreddits
+        logger.info(f"🔄 Fetching fresh results from Reddit: {posts_needed} total posts ({posts_per_sub} per sub)")
+        posts = reddit_service.fetch_posts_from_multiple_subreddits(
+            subreddits, 
+            query=request.problem_description,
                 limit_per_sub=posts_per_sub,  # Dynamic limit based on 15:1 ratio
                 time_range="all_time"  # Fixed time range for beta
             )
@@ -176,17 +170,7 @@ async def search_leads(request: LeadSearchRequest, db: Session = Depends(get_db)
             # Target custom result count (AI will return best available)
             target_leads = leads[:request.result_count]
             
-            # Cache the results
-            result_cache.cache_results(
-                request.problem_description,
-                business_type,
-                "all_time",
-                request.user_id or "anonymous",
-                (target_leads, 0.0),  # Cache with fresh age
-                request.result_count  # Include result_count in cache key
-            )
-            
-            result_age_hours = 0.0  # Fresh results
+            result_age_hours = 0.0  # Fresh results (no caching)
         
         # Update user usage tracking - deduct exactly what was requested
         final_results_count = len(target_leads if 'target_leads' in locals() else leads)
