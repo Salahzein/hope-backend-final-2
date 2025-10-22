@@ -156,21 +156,21 @@ async def search_leads(request: LeadSearchRequest, db: Session = Depends(get_db)
         posts = reddit_service.fetch_posts_from_multiple_subreddits(
             subreddits, 
             query=request.problem_description,
-                limit_per_sub=posts_per_sub,  # Dynamic limit based on 15:1 ratio
-                time_range="all_time"  # Fixed time range for beta
-            )
+            limit_per_sub=posts_per_sub,  # Dynamic limit based on 15:1 ratio
+            time_range="all_time"  # Fixed time range for beta
+        )
             
-            logger.info(f"Fetched {len(posts)} total posts from Reddit")
-            
-            # Filter posts using fast lead filter
-            leads, filter_metrics = lead_filter.filter_posts(posts, request.problem_description, business_type)
-            if filter_metrics:
-                logger.info(f"📊 Filter metrics: {filter_metrics}")
-            
-            # Target custom result count (AI will return best available)
-            target_leads = leads[:request.result_count]
-            
-            result_age_hours = 0.0  # Fresh results (no caching)
+        logger.info(f"Fetched {len(posts)} total posts from Reddit")
+        
+        # Filter posts using fast lead filter
+        leads, filter_metrics = lead_filter.filter_posts(posts, request.problem_description, business_type)
+        if filter_metrics:
+            logger.info(f"📊 Filter metrics: {filter_metrics}")
+        
+        # Target custom result count (AI will return best available)
+        target_leads = leads[:request.result_count]
+        
+        result_age_hours = 0.0  # Fresh results (no caching)
         
         # Update user usage tracking - deduct exactly what was requested
         final_results_count = len(target_leads if 'target_leads' in locals() else leads)
@@ -336,22 +336,7 @@ async def debug_tiered_system():
             "message": "Tiered system has an error"
         }
 
-@router.get("/debug/cache-stats")
-async def debug_cache_stats():
-    """Debug endpoint to check cache statistics"""
-    try:
-        stats = result_cache.get_cache_stats()
-        return {
-            "status": "success",
-            "cache_stats": stats,
-            "message": "Cache statistics retrieved"
-        }
-    except Exception as e:
-        return {
-            "status": "error",
-            "error": str(e),
-            "message": "Cache stats error"
-        }
+# Cache debug endpoint removed (cache disabled for unique results)
 
 @router.get("/api/debug/ai-config")
 async def debug_ai_config():
