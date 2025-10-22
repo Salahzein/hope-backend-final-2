@@ -235,7 +235,7 @@ async def search_leads(request: LeadSearchRequest, db: Session = Depends(get_db)
         try:
             search_metrics = SearchMetrics(
                 user_id=int(request.user_id) if request.user_id and request.user_id.isdigit() else None,
-                user_session_id=request.user_id if not (request.user_id and request.user_id.isdigit()) else None,
+                user_session_id=request.user_id,
                 problem_description=request.problem_description,
                 business_type=business_type,
                 result_count_requested=request.result_count,
