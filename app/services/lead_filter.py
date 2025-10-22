@@ -399,3 +399,4 @@ class LeadFilter:
             snippet = snippet + "..."
         
         return snippet
+        
