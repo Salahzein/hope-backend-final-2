@@ -422,7 +422,7 @@ async def export_search_results_csv(request: LeadSearchRequest, db: Session = De
         leads, _ = lead_filter.filter_posts(posts, request.problem_description, business_type)
         
         # Limit results
-        limited_leads = leads[:request.limit]
+        limited_leads = leads[:request.result_count]
         
         # Create CSV content
         output = io.StringIO()
@@ -482,7 +482,7 @@ async def export_search_results_excel(request: LeadSearchRequest, db: Session = 
         leads, _ = lead_filter.filter_posts(posts, request.problem_description, business_type)
         
         # Limit results
-        limited_leads = leads[:request.limit]
+        limited_leads = leads[:request.result_count]
         
         # Create DataFrame
         data = []
