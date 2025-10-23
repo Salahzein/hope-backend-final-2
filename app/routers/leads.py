@@ -419,7 +419,7 @@ async def export_search_results_csv(request: ExportRequest, db: Session = Depend
         for lead in leads:
             writer.writerow([
                 lead['title'],
-                f"https://reddit.com{lead['permalink']}",
+                lead['permalink'],
                 lead['author'],
                 lead['subreddit']
             ])
@@ -453,7 +453,7 @@ async def export_search_results_excel(request: ExportRequest, db: Session = Depe
         for lead in leads:
             data.append({
                 'Post Title': lead['title'],
-                'Post Link': f"https://reddit.com{lead['permalink']}",
+                'Post Link': lead['permalink'],
                 'Author Name': lead['author'],
                 'Subreddit': lead['subreddit']
             })
