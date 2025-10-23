@@ -453,7 +453,7 @@ async def export_search_results_excel(request: ExportRequest, db: Session = Depe
         for lead in leads:
             data.append({
                 'Post Title': lead['title'],
-                'Post Link': f'=HYPERLINK("{lead["permalink"]}","View Post")',
+                'Post Link': lead['permalink'],
                 'Author Name': lead['author'],
                 'Subreddit': lead['subreddit']
             })
@@ -464,6 +464,21 @@ async def export_search_results_excel(request: ExportRequest, db: Session = Depe
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             df.to_excel(writer, sheet_name='Search Results', index=False)
+            
+            # Post-process to add hyperlinks using openpyxl
+            from openpyxl.styles import Font
+            worksheet = writer.sheets['Search Results']
+            
+            # Create hyperlink font style
+            hyperlink_font = Font(color="0000FF", underline="single")
+            
+            # Convert all Post Link cells to hyperlinks
+            for row in range(2, len(df) + 2):  # Skip header row (row 1)
+                cell = worksheet.cell(row=row, column=2)  # Column B (Post Link)
+                if cell.value and 'reddit.com' in str(cell.value):
+                    cell.hyperlink = cell.value
+                    cell.font = hyperlink_font
+                    cell.value = "View Post"  # Display text
         
         output.seek(0)
         
