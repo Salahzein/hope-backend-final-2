@@ -1,9 +1,12 @@
 from fastapi import APIRouter, HTTPException, Depends
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 from typing import List, Optional
 import logging
 import time
+import csv
+import io
+import pandas as pd
 from sqlalchemy.orm import Session
 from app.services.reddit_service import RedditService
 from app.services.fast_lead_filter import FastLeadFilter
@@ -156,21 +159,21 @@ async def search_leads(request: LeadSearchRequest, db: Session = Depends(get_db)
         posts = reddit_service.fetch_posts_from_multiple_subreddits(
             subreddits, 
             query=request.problem_description,
-            limit_per_sub=posts_per_sub,  # Dynamic limit based on 15:1 ratio
-            time_range="all_time"  # Fixed time range for beta
-        )
-        
-        logger.info(f"Fetched {len(posts)} total posts from Reddit")
-        
-        # Filter posts using fast lead filter
-        leads, filter_metrics = lead_filter.filter_posts(posts, request.problem_description, business_type)
-        if filter_metrics:
-            logger.info(f"📊 Filter metrics: {filter_metrics}")
-        
-        # Target custom result count (AI will return best available)
-        target_leads = leads[:request.result_count]
-        
-        result_age_hours = 0.0  # Fresh results (no caching)
+                limit_per_sub=posts_per_sub,  # Dynamic limit based on 15:1 ratio
+                time_range="all_time"  # Fixed time range for beta
+            )
+            
+            logger.info(f"Fetched {len(posts)} total posts from Reddit")
+            
+            # Filter posts using fast lead filter
+            leads, filter_metrics = lead_filter.filter_posts(posts, request.problem_description, business_type)
+            if filter_metrics:
+                logger.info(f"📊 Filter metrics: {filter_metrics}")
+            
+            # Target custom result count (AI will return best available)
+            target_leads = leads[:request.result_count]
+            
+            result_age_hours = 0.0  # Fresh results (no caching)
         
         # Update user usage tracking - deduct exactly what was requested
         final_results_count = len(target_leads if 'target_leads' in locals() else leads)
@@ -381,3 +384,121 @@ async def debug_ai_config():
             "error": str(e),
             "message": "Debug config error"
         }
+
+@router.post("/export/csv")
+async def export_search_results_csv(request: LeadSearchRequest, db: Session = Depends(get_db)):
+    """Export search results to CSV format"""
+    try:
+        # Perform the same search as the main endpoint
+        logger.info(f"Exporting search results to CSV: business='{request.business}', industry='{request.industry}', problem='{request.problem_description}'")
+        
+        # Get subreddits and perform search (same logic as main endpoint)
+        business_type = request.business or request.industry
+        subreddits = get_beta_subreddits(business_type, use_backup=False)
+        
+        # Initialize services
+        reddit_service = RedditService()
+        lead_filter = FastLeadFilter()
+        
+        # Fetch posts
+        posts = reddit_service.fetch_posts_from_multiple_subreddits(
+            subreddits,
+            query=request.problem_description,
+            limit_per_sub=50,
+            time_range="all_time"
+        )
+        
+        # Filter posts
+        leads, _ = lead_filter.filter_posts(posts, request.problem_description, business_type)
+        
+        # Limit results
+        limited_leads = leads[:request.limit]
+        
+        # Create CSV content
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow(['Post Title', 'Post Link', 'Author Name', 'Subreddit'])
+        
+        # Write data
+        for lead in limited_leads:
+            writer.writerow([
+                lead.title,
+                f"https://reddit.com{lead.permalink}",
+                lead.author,
+                lead.subreddit
+            ])
+        
+        # Prepare response
+        output.seek(0)
+        csv_content = output.getvalue()
+        output.close()
+        
+        return StreamingResponse(
+            io.BytesIO(csv_content.encode('utf-8')),
+            media_type='text/csv',
+            headers={'Content-Disposition': 'attachment; filename="search_results.csv"'}
+        )
+        
+    except Exception as e:
+        logger.error(f"CSV export failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
+
+@router.post("/export/excel")
+async def export_search_results_excel(request: LeadSearchRequest, db: Session = Depends(get_db)):
+    """Export search results to Excel format"""
+    try:
+        # Perform the same search as the main endpoint
+        logger.info(f"Exporting search results to Excel: business='{request.business}', industry='{request.industry}', problem='{request.problem_description}'")
+        
+        # Get subreddits and perform search (same logic as main endpoint)
+        business_type = request.business or request.industry
+        subreddits = get_beta_subreddits(business_type, use_backup=False)
+        
+        # Initialize services
+        reddit_service = RedditService()
+        lead_filter = FastLeadFilter()
+        
+        # Fetch posts
+        posts = reddit_service.fetch_posts_from_multiple_subreddits(
+            subreddits,
+            query=request.problem_description,
+            limit_per_sub=50,
+            time_range="all_time"
+        )
+        
+        # Filter posts
+        leads, _ = lead_filter.filter_posts(posts, request.problem_description, business_type)
+        
+        # Limit results
+        limited_leads = leads[:request.limit]
+        
+        # Create DataFrame
+        data = []
+        for lead in limited_leads:
+            data.append({
+                'Post Title': lead.title,
+                'Post Link': f"https://reddit.com{lead.permalink}",
+                'Author Name': lead.author,
+                'Subreddit': lead.subreddit
+            })
+        
+        df = pd.DataFrame(data)
+        
+        # Create Excel file in memory
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name='Search Results', index=False)
+        
+        output.seek(0)
+        
+        return StreamingResponse(
+            io.BytesIO(output.getvalue()),
+            media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            headers={'Content-Disposition': 'attachment; filename="search_results.xlsx"'}
+        )
+        
+    except Exception as e:
+        logger.error(f"Excel export failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
