@@ -10,7 +10,7 @@ import io
 from sqlalchemy.orm import Session
 from app.services.reddit_service import RedditService
 from app.services.fast_lead_filter import FastLeadFilter
-from app.services.business_mapping_hyperfocus import get_business_options as get_business_mapping_hyperfocus_options, get_industry_options as get_industry_mapping_options
+from app.services.business_mapping_hyperfocus import get_business_options as get_business_mapping_options, get_industry_options as get_industry_mapping_options
 from app.services.tiered_subreddit_mapping import get_beta_subreddits, get_beta_info
 # Cache removed for unique results
 from app.models.lead import Lead
@@ -288,7 +288,7 @@ async def search_leads(request: LeadSearchRequest, db: Session = Depends(get_db)
 @router.get("/business-options")
 async def get_business_options():
     """Get available business options"""
-    return {"businesses": get_business_mapping_hyperfocus_options()}
+    return {"businesses": get_business_mapping_options()}
 
 @router.get("/industry-options")
 async def get_industry_options():
