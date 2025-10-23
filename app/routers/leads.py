@@ -385,6 +385,16 @@ async def debug_ai_config():
             "message": "Debug config error"
         }
 
+@router.get("/business-options")
+async def get_business_options():
+    """Get available business options"""
+    return {"businesses": get_business_mapping_options()}
+
+@router.get("/industry-options")
+async def get_industry_options():
+    """Get available industry options"""
+    return {"industries": get_industry_mapping_options()}
+
 @router.post("/export/csv")
 async def export_search_results_csv(request: LeadSearchRequest, db: Session = Depends(get_db)):
     """Export search results to CSV format"""
