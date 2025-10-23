@@ -27,6 +27,10 @@ class LeadSearchRequest(BaseModel):
     user_id: Optional[str] = None
     result_count: int = 100  # Number of results to return (1-150)
 
+class ExportRequest(BaseModel):
+    results: List[dict]  # The actual search results to export
+    format: str  # "csv" or "excel"
+
 class LeadSearchResponse(BaseModel):
     leads: List[Lead]
     total_found: int
@@ -396,33 +400,13 @@ async def get_industry_options():
     return {"industries": get_industry_mapping_options()}
 
 @router.post("/export/csv")
-async def export_search_results_csv(request: LeadSearchRequest, db: Session = Depends(get_db)):
-    """Export search results to CSV format"""
+async def export_search_results_csv(request: ExportRequest, db: Session = Depends(get_db)):
+    """Export search results to CSV format using actual results"""
     try:
-        # Perform the same search as the main endpoint
-        logger.info(f"Exporting search results to CSV: business='{request.business}', industry='{request.industry}', problem='{request.problem_description}'")
+        logger.info(f"Exporting {len(request.results)} results to CSV format")
         
-        # Get subreddits and perform search (same logic as main endpoint)
-        business_type = request.business or request.industry
-        subreddits = get_beta_subreddits(business_type, use_backup=False)
-        
-        # Initialize services
-        reddit_service = RedditService()
-        lead_filter = FastLeadFilter()
-        
-        # Fetch posts
-        posts = reddit_service.fetch_posts_from_multiple_subreddits(
-            subreddits,
-            query=request.problem_description,
-            limit_per_sub=50,
-            time_range="all_time"
-        )
-        
-        # Filter posts
-        leads, _ = lead_filter.filter_posts(posts, request.problem_description, business_type)
-        
-        # Limit results
-        limited_leads = leads[:request.result_count]
+        # Use the actual results passed from frontend
+        leads = request.results
         
         # Create CSV content
         output = io.StringIO()
@@ -432,12 +416,12 @@ async def export_search_results_csv(request: LeadSearchRequest, db: Session = De
         writer.writerow(['Post Title', 'Post Link', 'Author Name', 'Subreddit'])
         
         # Write data
-        for lead in limited_leads:
+        for lead in leads:
             writer.writerow([
-                lead.title,
-                f"https://reddit.com{lead.permalink}",
-                lead.author,
-                lead.subreddit
+                lead['title'],
+                f"https://reddit.com{lead['permalink']}",
+                lead['author'],
+                lead['subreddit']
             ])
         
         # Prepare response
@@ -456,42 +440,22 @@ async def export_search_results_csv(request: LeadSearchRequest, db: Session = De
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
 @router.post("/export/excel")
-async def export_search_results_excel(request: LeadSearchRequest, db: Session = Depends(get_db)):
-    """Export search results to Excel format"""
+async def export_search_results_excel(request: ExportRequest, db: Session = Depends(get_db)):
+    """Export search results to Excel format using actual results"""
     try:
-        # Perform the same search as the main endpoint
-        logger.info(f"Exporting search results to Excel: business='{request.business}', industry='{request.industry}', problem='{request.problem_description}'")
+        logger.info(f"Exporting {len(request.results)} results to Excel format")
         
-        # Get subreddits and perform search (same logic as main endpoint)
-        business_type = request.business or request.industry
-        subreddits = get_beta_subreddits(business_type, use_backup=False)
-        
-        # Initialize services
-        reddit_service = RedditService()
-        lead_filter = FastLeadFilter()
-        
-        # Fetch posts
-        posts = reddit_service.fetch_posts_from_multiple_subreddits(
-            subreddits,
-            query=request.problem_description,
-            limit_per_sub=50,
-            time_range="all_time"
-        )
-        
-        # Filter posts
-        leads, _ = lead_filter.filter_posts(posts, request.problem_description, business_type)
-        
-        # Limit results
-        limited_leads = leads[:request.result_count]
+        # Use the actual results passed from frontend
+        leads = request.results
         
         # Create DataFrame
         data = []
-        for lead in limited_leads:
+        for lead in leads:
             data.append({
-                'Post Title': lead.title,
-                'Post Link': f"https://reddit.com{lead.permalink}",
-                'Author Name': lead.author,
-                'Subreddit': lead.subreddit
+                'Post Title': lead['title'],
+                'Post Link': f"https://reddit.com{lead['permalink']}",
+                'Author Name': lead['author'],
+                'Subreddit': lead['subreddit']
             })
         
         df = pd.DataFrame(data)
