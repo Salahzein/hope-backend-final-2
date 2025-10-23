@@ -6,11 +6,11 @@ import logging
 import time
 import csv
 import io
-import pandas as pd
+# import pandas as pd
 from sqlalchemy.orm import Session
 from app.services.reddit_service import RedditService
 from app.services.fast_lead_filter import FastLeadFilter
-from app.services.business_mapping import get_business_options as get_business_mapping_options, get_industry_options as get_industry_mapping_options
+from app.services.business_mapping_hyperfocus import get_business_options as get_business_mapping_hyperfocus_options, get_industry_options as get_industry_mapping_options
 from app.services.tiered_subreddit_mapping import get_beta_subreddits, get_beta_info
 # Cache removed for unique results
 from app.models.lead import Lead
@@ -26,10 +26,6 @@ class LeadSearchRequest(BaseModel):
     industry: Optional[str] = None
     user_id: Optional[str] = None
     result_count: int = 100  # Number of results to return (1-150)
-
-class ExportRequest(BaseModel):
-    results: List[dict]  # The actual search results to export
-    format: str  # "csv" or "excel"
 
 class LeadSearchResponse(BaseModel):
     leads: List[Lead]
@@ -163,21 +159,21 @@ async def search_leads(request: LeadSearchRequest, db: Session = Depends(get_db)
         posts = reddit_service.fetch_posts_from_multiple_subreddits(
             subreddits, 
             query=request.problem_description,
-            limit_per_sub=posts_per_sub,  # Dynamic limit based on 15:1 ratio
-            time_range="all_time"  # Fixed time range for beta
-        )
-        
+                limit_per_sub=posts_per_sub,  # Dynamic limit based on 15:1 ratio
+                time_range="all_time"  # Fixed time range for beta
+            )
+            
         logger.info(f"Fetched {len(posts)} total posts from Reddit")
-        
+            
         # Filter posts using fast lead filter
         leads, filter_metrics = lead_filter.filter_posts(posts, request.problem_description, business_type)
         if filter_metrics:
             logger.info(f"📊 Filter metrics: {filter_metrics}")
-        
+            
         # Target custom result count (AI will return best available)
-        target_leads = leads[:request.result_count]
-        
-        result_age_hours = 0.0  # Fresh results (no caching)
+            target_leads = leads[:request.result_count]
+            
+            result_age_hours = 0.0  # Fresh results (no caching)
         
         # Update user usage tracking - deduct exactly what was requested
         final_results_count = len(target_leads if 'target_leads' in locals() else leads)
@@ -292,7 +288,7 @@ async def search_leads(request: LeadSearchRequest, db: Session = Depends(get_db)
 @router.get("/business-options")
 async def get_business_options():
     """Get available business options"""
-    return {"businesses": get_business_mapping_options()}
+    return {"businesses": get_business_mapping_hyperfocus_options()}
 
 @router.get("/industry-options")
 async def get_industry_options():
@@ -389,24 +385,34 @@ async def debug_ai_config():
             "message": "Debug config error"
         }
 
-@router.get("/business-options")
-async def get_business_options():
-    """Get available business options"""
-    return {"businesses": get_business_mapping_options()}
-
-@router.get("/industry-options")
-async def get_industry_options():
-    """Get available industry options"""
-    return {"industries": get_industry_mapping_options()}
-
 @router.post("/export/csv")
-async def export_search_results_csv(request: ExportRequest, db: Session = Depends(get_db)):
-    """Export search results to CSV format using actual results"""
+async def export_search_results_csv(request: LeadSearchRequest, db: Session = Depends(get_db)):
+    """Export search results to CSV format"""
     try:
-        logger.info(f"Exporting {len(request.results)} results to CSV format")
+        # Perform the same search as the main endpoint
+        logger.info(f"Exporting search results to CSV: business='{request.business}', industry='{request.industry}', problem='{request.problem_description}'")
         
-        # Use the actual results passed from frontend
-        leads = request.results
+        # Get subreddits and perform search (same logic as main endpoint)
+        business_type = request.business or request.industry
+        subreddits = get_beta_subreddits(business_type, use_backup=False)
+        
+        # Initialize services
+        reddit_service = RedditService()
+        lead_filter = FastLeadFilter()
+        
+        # Fetch posts
+        posts = reddit_service.fetch_posts_from_multiple_subreddits(
+            subreddits,
+            query=request.problem_description,
+            limit_per_sub=50,
+            time_range="all_time"
+        )
+        
+        # Filter posts
+        leads, _ = lead_filter.filter_posts(posts, request.problem_description, business_type)
+        
+        # Limit results
+        limited_leads = leads[:request.limit]
         
         # Create CSV content
         output = io.StringIO()
@@ -416,12 +422,12 @@ async def export_search_results_csv(request: ExportRequest, db: Session = Depend
         writer.writerow(['Post Title', 'Post Link', 'Author Name', 'Subreddit'])
         
         # Write data
-        for lead in leads:
+        for lead in limited_leads:
             writer.writerow([
-                lead['title'],
-                lead['permalink'],
-                lead['author'],
-                lead['subreddit']
+                lead.title,
+                f"https://reddit.com{lead.permalink}",
+                lead.author,
+                lead.subreddit
             ])
         
         # Prepare response
@@ -440,22 +446,42 @@ async def export_search_results_csv(request: ExportRequest, db: Session = Depend
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
 @router.post("/export/excel")
-async def export_search_results_excel(request: ExportRequest, db: Session = Depends(get_db)):
-    """Export search results to Excel format using actual results"""
+async def export_search_results_excel(request: LeadSearchRequest, db: Session = Depends(get_db)):
+    """Export search results to Excel format"""
     try:
-        logger.info(f"Exporting {len(request.results)} results to Excel format")
+        # Perform the same search as the main endpoint
+        logger.info(f"Exporting search results to Excel: business='{request.business}', industry='{request.industry}', problem='{request.problem_description}'")
         
-        # Use the actual results passed from frontend
-        leads = request.results
+        # Get subreddits and perform search (same logic as main endpoint)
+        business_type = request.business or request.industry
+        subreddits = get_beta_subreddits(business_type, use_backup=False)
+        
+        # Initialize services
+        reddit_service = RedditService()
+        lead_filter = FastLeadFilter()
+        
+        # Fetch posts
+        posts = reddit_service.fetch_posts_from_multiple_subreddits(
+            subreddits,
+            query=request.problem_description,
+            limit_per_sub=50,
+            time_range="all_time"
+        )
+        
+        # Filter posts
+        leads, _ = lead_filter.filter_posts(posts, request.problem_description, business_type)
+        
+        # Limit results
+        limited_leads = leads[:request.limit]
         
         # Create DataFrame
         data = []
-        for lead in leads:
+        for lead in limited_leads:
             data.append({
-                'Post Title': lead['title'],
-                'Post Link': lead['permalink'],
-                'Author Name': lead['author'],
-                'Subreddit': lead['subreddit']
+                'Post Title': lead.title,
+                'Post Link': f"https://reddit.com{lead.permalink}",
+                'Author Name': lead.author,
+                'Subreddit': lead.subreddit
             })
         
         df = pd.DataFrame(data)
@@ -464,21 +490,6 @@ async def export_search_results_excel(request: ExportRequest, db: Session = Depe
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             df.to_excel(writer, sheet_name='Search Results', index=False)
-            
-            # Post-process to add hyperlinks using openpyxl
-            from openpyxl.styles import Font
-            worksheet = writer.sheets['Search Results']
-            
-            # Create hyperlink font style
-            hyperlink_font = Font(color="0000FF", underline="single")
-            
-            # Convert all Post Link cells to hyperlinks
-            for row in range(2, len(df) + 2):  # Skip header row (row 1)
-                cell = worksheet.cell(row=row, column=2)  # Column B (Post Link)
-                if cell.value and 'reddit.com' in str(cell.value):
-                    cell.hyperlink = cell.value
-                    cell.font = hyperlink_font
-                    cell.value = "View Post"  # Display text
         
         output.seek(0)
         
