@@ -453,7 +453,7 @@ async def export_search_results_excel(request: ExportRequest, db: Session = Depe
         for lead in leads:
             data.append({
                 'Post Title': lead['title'],
-                'Post Link': lead['permalink'],
+                'Post Link': f'=HYPERLINK("{lead["permalink"]}","View Post")',
                 'Author Name': lead['author'],
                 'Subreddit': lead['subreddit']
             })
