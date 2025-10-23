@@ -137,3 +137,4 @@ def calculate_business_relevance_score(post_text: str, target_keywords: List[str
         match_percentage += 10  # Small bonus for 2+ matches
     
     return min(100, int(match_percentage))
+
