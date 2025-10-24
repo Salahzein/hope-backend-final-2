@@ -10,7 +10,7 @@ import io
 from sqlalchemy.orm import Session
 from app.services.reddit_service import RedditService
 from app.services.fast_lead_filter import FastLeadFilter
-from app.services.business_mapping_hyperfocus import get_business_options as get_business_mapping_options, get_industry_options as get_industry_mapping_options
+from app.services.business_mapping_hyperfocus import get_business_options as get_business_mapping_hyperfocus_options, get_industry_options as get_industry_mapping_options
 from app.services.tiered_subreddit_mapping import get_beta_subreddits, get_beta_info
 # Cache removed for unique results
 from app.models.lead import Lead
@@ -53,7 +53,7 @@ async def debug_test():
         beta_info = get_beta_info('SaaS Companies')
         
         # Test a simple Reddit fetch
-        posts = reddit_service.fetch_posts_from_subreddit('SaaS', limit=5, time_range='year')
+        posts = reddit_service.fetch_posts_from_subreddit('SaaS', limit=1000, time_range='year')
         
         # Test filtering
         leads = lead_filter.filter_posts(posts, 'struggling to get customers', 'SaaS Companies', 'all_time')
@@ -288,7 +288,7 @@ async def search_leads(request: LeadSearchRequest, db: Session = Depends(get_db)
 @router.get("/business-options")
 async def get_business_options():
     """Get available business options"""
-    return {"businesses": get_business_mapping_options()}
+    return {"businesses": get_business_mapping_hyperfocus_options()}
 
 @router.get("/industry-options")
 async def get_industry_options():
@@ -405,7 +405,7 @@ async def export_search_results_csv(request: LeadSearchRequest, db: Session = De
             subreddits,
             query=request.problem_description,
             limit_per_sub=50,
-            time_range="year"
+            time_range="all_time"
         )
         
         # Filter posts
@@ -465,7 +465,7 @@ async def export_search_results_excel(request: LeadSearchRequest, db: Session = 
             subreddits,
             query=request.problem_description,
             limit_per_sub=50,
-            time_range="year"
+            time_range="all_time"
         )
         
         # Filter posts
