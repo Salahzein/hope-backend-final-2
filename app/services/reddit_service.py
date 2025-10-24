@@ -230,8 +230,8 @@ class RedditService:
                     'restrict_sr': '1'
             }
             
-                if after:
-                    params['after'] = after
+            if after:
+                params['after'] = after
             
             response = requests.get(url, params=params, headers=headers, timeout=10)
             response.raise_for_status()
@@ -334,6 +334,7 @@ class RedditService:
         
         logger.info(f"🕒 TIME FILTER: {len(posts)} posts -> {len(filtered_posts)} posts (time_range: {time_range})")
         return filtered_posts
+
 
 
 
