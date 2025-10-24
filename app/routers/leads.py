@@ -53,7 +53,7 @@ async def debug_test():
         beta_info = get_beta_info('SaaS Companies')
         
         # Test a simple Reddit fetch
-        posts = reddit_service.fetch_posts_from_subreddit('SaaS', limit=1000, time_range='year')
+        posts = reddit_service.fetch_posts_from_subreddit('SaaS', limit=1000, time_range='all_time')
         
         # Test filtering
         leads = lead_filter.filter_posts(posts, 'struggling to get customers', 'SaaS Companies', 'all_time')
@@ -160,7 +160,7 @@ async def search_leads(request: LeadSearchRequest, db: Session = Depends(get_db)
             subreddits, 
             query=request.problem_description,
                 limit_per_sub=posts_per_sub,  # Dynamic limit based on 15:1 ratio
-                time_range="year"  # Fixed time range for beta
+                time_range="all_time"  # Fixed time range for beta
             )
             
         logger.info(f"Fetched {len(posts)} total posts from Reddit")
