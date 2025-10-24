@@ -238,6 +238,18 @@ class RedditService:
                 except Exception as e:
                     logger.warning(f"❌ TOP method (month) failed: {e}")
                     
+            elif time_range == "year":
+                # For last year: Use 'top' with year filter
+                try:
+                    self._rate_limit()
+                    top_posts = list(subreddit.top(time_filter="year", limit=posts_per_method))
+                    for post in top_posts:
+                        if self._post_matches_query(post, query):
+                            all_posts.append(self._format_post(post))
+                    logger.info(f"✅ TOP method (year): Found {len([p for p in top_posts if self._post_matches_query(p, query)])} matching posts")
+                except Exception as e:
+                    logger.warning(f"❌ TOP method (year) failed: {e}")
+                    
             elif time_range == "all_time":
                 # For all time: Use 'top' with all filter
                 try:
@@ -388,3 +400,4 @@ class RedditService:
         
         logger.info(f"🕒 TIME FILTER: {len(posts)} posts -> {len(filtered_posts)} posts (time_range: {time_range})")
         return filtered_posts
+
