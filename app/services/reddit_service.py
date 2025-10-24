@@ -223,20 +223,20 @@ class RedditService:
                 remaining = max_posts - len(all_posts)
                 batch_limit = min(100, remaining)  # Max 100 per request
                 
-            params = {
-                'q': query,
-                'sort': 'relevance',
+                params = {
+                    'q': query,
+                    'sort': 'relevance',
                     'limit': batch_limit,
                     'restrict_sr': '1'
-            }
-            
-            if after:
-                params['after'] = after
-            
-            response = requests.get(url, params=params, headers=headers, timeout=10)
-            response.raise_for_status()
-            
-            data = response.json()
+                }
+                
+                if after:
+                    params['after'] = after
+                
+                response = requests.get(url, params=params, headers=headers, timeout=10)
+                response.raise_for_status()
+                
+                data = response.json()
                 
                 if 'data' not in data or 'children' not in data['data']:
                     break
@@ -261,7 +261,7 @@ class RedditService:
                         'permalink': f"https://www.reddit.com{post_data.get('permalink', '')}",
                         'num_comments': post_data.get('num_comments', 0)
                     })
-            
+                
                 # Get next page token
                 after = data['data'].get('after')
                 if not after:
@@ -334,6 +334,7 @@ class RedditService:
         
         logger.info(f"🕒 TIME FILTER: {len(posts)} posts -> {len(filtered_posts)} posts (time_range: {time_range})")
         return filtered_posts
+
 
 
 
