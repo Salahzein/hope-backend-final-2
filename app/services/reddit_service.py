@@ -49,106 +49,14 @@ class RedditService:
         else:
             return ["SaaS", "entrepreneur", "startups"]  # Fallback
     
-    def fetch_posts_from_subreddit(self, subreddit_name: str, limit: int = 50, time_range: str = "today") -> List[Dict[str, Any]]:
-        """Fetch posts from a specific subreddit using multiple sorting methods for better diversity"""
+    def fetch_posts_from_subreddit(self, subreddit_name: str, limit: int = 1000, time_range: str = "today") -> List[Dict[str, Any]]:
+        """Fetch posts from a specific subreddit using the new pagination method"""
         logger.info(f"Fetching {limit} posts from r/{subreddit_name} (time_range: {time_range})")
         
-        try:
-            self._rate_limit()
-            subreddit = self.reddit.subreddit(subreddit_name)
-            all_posts = []
-            
-            # Use multiple sorting methods to get diverse posts
-            if time_range == "today":
-                # For today: mix of new and hot posts
-                posts_per_method = limit // 2
-                try:
-                    new_posts = list(subreddit.new(limit=posts_per_method))
-                    all_posts.extend(new_posts)
-                except:
-                    pass
-                try:
-                    hot_posts = list(subreddit.hot(limit=posts_per_method))
-                    all_posts.extend(hot_posts)
-                except:
-                    pass
-                    
-            elif time_range == "last_week":
-                # For last week: mix of hot and top weekly
-                posts_per_method = limit // 2
-                try:
-                    hot_posts = list(subreddit.hot(limit=posts_per_method))
-                    all_posts.extend(hot_posts)
-                except:
-                    pass
-                try:
-                    top_posts = list(subreddit.top(time_filter="week", limit=posts_per_method))
-                    all_posts.extend(top_posts)
-                except:
-                    pass
-                    
-            elif time_range == "last_month":
-                # For last month: mix of top monthly and hot
-                posts_per_method = limit // 2
-                try:
-                    top_posts = list(subreddit.top(time_filter="month", limit=posts_per_method))
-                    all_posts.extend(top_posts)
-                except:
-                    pass
-                try:
-                    hot_posts = list(subreddit.hot(limit=posts_per_method))
-                    all_posts.extend(hot_posts)
-                except:
-                    pass
-                    
-            elif time_range == "all_time":
-                # For all time: mix of top all-time and hot
-                posts_per_method = limit // 2
-                try:
-                    top_posts = list(subreddit.top(time_filter="all", limit=posts_per_method))
-                    all_posts.extend(top_posts)
-                except:
-                    pass
-                try:
-                    hot_posts = list(subreddit.hot(limit=posts_per_method))
-                    all_posts.extend(hot_posts)
-                except:
-                    pass
-            else:
-                # Default: just new posts
-                all_posts = list(subreddit.new(limit=limit))
-            
-            # Remove duplicates based on post ID
-            seen_ids = set()
-            unique_posts = []
-            for submission in all_posts:
-                if submission.id not in seen_ids:
-                    seen_ids.add(submission.id)
-                    unique_posts.append(submission)
-            
-            # Convert to our format
-            posts = []
-            for submission in unique_posts[:limit]:  # Limit to requested amount
-                post_data = {
-                    "title": submission.title,
-                    "text": f"{submission.title} {submission.selftext}".strip(),
-                    "subreddit": subreddit_name,
-                    "permalink": f"https://reddit.com{submission.permalink}",
-                    "author": str(submission.author) if submission.author else "[deleted]",
-                    "created_utc": submission.created_utc,
-                    "score": submission.score,
-                    "num_comments": submission.num_comments
-                }
-                posts.append(post_data)
-            
-            logger.info(f"Successfully fetched {len(posts)} unique posts from r/{subreddit_name}")
-            return posts
-            
-        except Exception as e:
-            logger.error(f"Error fetching posts from r/{subreddit_name}: {e}")
-            return []
+        # Use the new pagination method for better results
+        return self.fetch_posts_with_multiple_methods(subreddit_name, "", limit, time_range)
     
-    def fetch_posts_from_multiple_subreddits(self, subreddit_names: List[str], query: str = "", limit_per_sub: int = 50, time_range: str = "today") -> List[Dict[str, Any]]:
+    def fetch_posts_from_multiple_subreddits(self, subreddit_names: List[str], query: str = "", limit_per_sub: int = 1000, time_range: str = "today") -> List[Dict[str, Any]]:
         """Fetch posts from multiple subreddits in parallel for much faster performance"""
         logger.info(f"🚀 PARALLEL SCRAPING: Starting parallel fetch from {len(subreddit_names)} subreddits")
         all_posts = []
@@ -177,12 +85,12 @@ class RedditService:
         logger.info(f"🎯 PARALLEL COMPLETE: Total {len(all_posts)} posts from {len(subreddit_names)} subreddits")
         return all_posts
     
-    def fetch_posts_with_multiple_methods(self, subreddit_name: str, query: str, limit: int = 50, time_range: str = "today") -> List[Dict[str, Any]]:
+    def fetch_posts_with_multiple_methods(self, subreddit_name: str, query: str, limit: int = 1000, time_range: str = "today") -> List[Dict[str, Any]]:
         """Fetch posts using multiple sorting methods and search variations for maximum diversity"""
         logger.info(f"🔍 MULTIPLE METHODS: Fetching from r/{subreddit_name} with query '{query}' (time_range: {time_range})")
         
         all_posts = []
-        posts_per_method = max(1, limit // 2)  # Split limit between methods
+        posts_per_method = max(1, min(limit, 1000) // 2)  # Split limit between methods, max 1000 per method
         
         try:
             subreddit = self.reddit.subreddit(subreddit_name)
@@ -191,7 +99,7 @@ class RedditService:
             if time_range == "today":
                 # For today: Use 'new' and 'hot' for recent posts - GET MORE POSTS
                 # Increase limit to get more posts and handle duplicates better
-                today_posts_per_method = limit * 2  # Get 2x limit from each method (100+100 instead of 50+50)
+                today_posts_per_method = min(limit * 2, 1000)  # Get 2x limit from each method, max 1000 per method
                 
                 try:
                     self._rate_limit()
@@ -268,7 +176,7 @@ class RedditService:
                     self._rate_limit()
                     # Set current time range for search API to use
                     self._current_time_range = time_range
-                    search_posts = self.fetch_posts_search_api(subreddit_name, query, min(10, limit - len(all_posts)))
+                    search_posts = self.fetch_posts_search_api(subreddit_name, query, limit - len(all_posts))
                     for post in search_posts:
                         if not any(p['id'] == post['id'] for p in all_posts):
                             all_posts.append(post)
@@ -298,37 +206,52 @@ class RedditService:
         query_words = query_lower.split()
         return any(word in title_lower or word in selftext_lower for word in query_words)
     
-    def fetch_posts_search_api(self, subreddit_name: str, query: str, limit: int = 50) -> List[Dict[str, Any]]:
-        """Fetch posts using Reddit's search API for better relevance"""
+    def fetch_posts_search_api(self, subreddit_name: str, query: str, limit: int = 1000) -> List[Dict[str, Any]]:
+        """Fetch posts using Reddit's search API with pagination up to 1,000 posts"""
         try:
             import requests
             
-            # Use Reddit's search API
             url = f"https://www.reddit.com/r/{subreddit_name}/search.json"
-            params = {
-                'q': query,
-                'sort': 'relevance',
-                'limit': min(limit, 100),  # Reddit API limit
-                'restrict_sr': '1'  # Restrict to subreddit
-            }
+            headers = {'User-Agent': settings.reddit_user_agent}
             
-            headers = {
-                'User-Agent': settings.reddit_user_agent
-            }
+            all_posts = []
+            after = None
+            max_posts = min(limit, 1000)  # Reddit's max limit
             
-            response = requests.get(url, params=params, headers=headers, timeout=10)
-            response.raise_for_status()
-            
-            data = response.json()
-            posts = []
-            
-            if 'data' in data and 'children' in data['data']:
-                for child in data['data']['children']:
+            while len(all_posts) < max_posts:
+                # Calculate how many posts to fetch in this batch
+                remaining = max_posts - len(all_posts)
+                batch_limit = min(100, remaining)  # Max 100 per request
+                
+                params = {
+                    'q': query,
+                    'sort': 'relevance',
+                    'limit': batch_limit,
+                    'restrict_sr': '1'
+                }
+                
+                if after:
+                    params['after'] = after
+                
+                response = requests.get(url, params=params, headers=headers, timeout=10)
+                response.raise_for_status()
+                
+                data = response.json()
+                
+                if 'data' not in data or 'children' not in data['data']:
+                    break
+                    
+                new_posts = data['data']['children']
+                if not new_posts:
+                    break
+                
+                # Process posts
+                for child in new_posts:
                     post_data = child['data']
-                    posts.append({
+                    all_posts.append({
                         'id': post_data['id'],
                         'title': post_data['title'],
-                        'text': post_data.get('selftext', ''),  # Changed from 'selftext' to 'text'
+                        'text': post_data.get('selftext', ''),
                         'selftext': post_data.get('selftext', ''),
                         'author': post_data.get('author', '[deleted]'),
                         'score': post_data.get('score', 0),
@@ -338,15 +261,22 @@ class RedditService:
                         'permalink': f"https://www.reddit.com{post_data.get('permalink', '')}",
                         'num_comments': post_data.get('num_comments', 0)
                     })
+                
+                # Get next page token
+                after = data['data'].get('after')
+                if not after:
+                    break
+                    
+                logger.info(f"🔍 PAGINATION: Fetched {len(all_posts)}/{max_posts} posts so far...")
             
-            logger.info(f"🔍 SEARCH API: Found {len(posts)} posts for query '{query}' in r/{subreddit_name}")
+            logger.info(f"🔍 SEARCH API: Found {len(all_posts)} posts for query '{query}' in r/{subreddit_name}")
             
             # Apply time filtering if time_range is specified
             if hasattr(self, '_current_time_range') and self._current_time_range != "all_time":
-                posts = self._filter_posts_by_time(posts, self._current_time_range)
-                logger.info(f"🕒 TIME FILTERING: Filtered to {len(posts)} posts for time_range: {self._current_time_range}")
+                all_posts = self._filter_posts_by_time(all_posts, self._current_time_range)
+                logger.info(f"🕒 TIME FILTERING: Filtered to {len(all_posts)} posts for time_range: {self._current_time_range}")
             
-            return posts
+            return all_posts[:max_posts]
             
         except Exception as e:
             logger.error(f"❌ SEARCH API failed for r/{subreddit_name} with query '{query}': {e}")
@@ -400,4 +330,5 @@ class RedditService:
         
         logger.info(f"🕒 TIME FILTER: {len(posts)} posts -> {len(filtered_posts)} posts (time_range: {time_range})")
         return filtered_posts
+
 
