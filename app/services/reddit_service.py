@@ -148,9 +148,11 @@ class RedditService:
                     
             elif time_range == "year":
                 # For last year: Use 'top' with year filter
+                # Increase limit to compensate for year filtering
+                year_posts_per_method = min(limit * 2, 1000)  # Get 2x limit, max 1000
                 try:
                     self._rate_limit()
-                    top_posts = list(subreddit.top(time_filter="year", limit=posts_per_method))
+                    top_posts = list(subreddit.top(time_filter="year", limit=year_posts_per_method))
                     for post in top_posts:
                         if self._post_matches_query(post, query):
                             all_posts.append(self._format_post(post))
@@ -183,6 +185,11 @@ class RedditService:
                     logger.info(f"✅ SEARCH API with original query: Found {len(search_posts)} new posts")
                 except Exception as e:
                     logger.warning(f"❌ SEARCH API failed: {e}")
+            
+            # Apply year filtering to Reddit API results
+            if time_range == "year":
+                all_posts = self._filter_posts_by_time(all_posts, "year")
+                logger.info(f"🕒 YEAR FILTER APPLIED: {len(all_posts)} posts remaining after year filter")
             
             logger.info(f"🎯 MULTIPLE METHODS RESULT: {len(all_posts)} total unique posts from r/{subreddit_name} (time_range: {time_range})")
             return all_posts[:limit]
@@ -227,7 +234,8 @@ class RedditService:
                     'q': query,
                     'sort': 'relevance',
                     'limit': batch_limit,
-                    'restrict_sr': '1'
+                    'restrict_sr': '1',
+                    't': 'year'  # Add time parameter for better year filtering
                 }
                 
                 if after:
@@ -321,9 +329,13 @@ class RedditService:
                     if time_diff.days <= 30:
                         filtered_posts.append(post)
                 elif time_range == "year":
-                    # Posts from last 365 days
+                    # Posts from last 365 days with additional safety check
                     if time_diff.days <= 365:
                         filtered_posts.append(post)
+                    elif time_diff.days > 366:
+                        # Explicitly skip posts older than 1 year
+                        logger.debug(f"Skipping post older than 1 year: {time_diff.days} days old")
+                        continue
                 else:
                     # For all_time or unknown ranges, include all posts
                     filtered_posts.append(post)
@@ -334,6 +346,7 @@ class RedditService:
         
         logger.info(f"🕒 TIME FILTER: {len(posts)} posts -> {len(filtered_posts)} posts (time_range: {time_range})")
         return filtered_posts
+
 
 
 
