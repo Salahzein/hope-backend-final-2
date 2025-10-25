@@ -11,7 +11,7 @@ TIERED_SUBREDDIT_MAPPINGS: Dict[str, Dict[int, List[str]]] = {
         1: ["SaaS", "startups", "Entrepreneur"],  # Most relevant (PRIMARY)
         2: ["IndieHackers", "microSaaS", "EntrepreneurRideAlong"],
         3: ["smallbusiness", "Entrepreneur", "business"],
-        4: ["marketing", "sales", "freelance"]
+        4: ["business", "startup_ideas", "entrepreneurridealong"]
     },
     "App Developers": {
         1: ["SaaS", "startups", "Entrepreneur"],
@@ -73,7 +73,7 @@ TIERED_SUBREDDIT_MAPPINGS: Dict[str, Dict[int, List[str]]] = {
         1: ["SaaS", "startups", "Entrepreneur"],
         2: ["IndieHackers", "microSaaS", "EntrepreneurRideAlong"],
         3: ["smallbusiness", "Entrepreneur", "business"],
-        4: ["marketing", "sales", "freelance"]
+        4: ["business", "startup_ideas", "entrepreneurridealong"]
     },
     "E-commerce": {
         1: ["ecommerce", "dropshipping", "Shopify"],
@@ -203,5 +203,6 @@ def get_tier_info(business_type: str, request_number: int) -> Dict[str, any]:
         "posts_per_subreddit": 500,
         "total_posts": len(subreddits) * 500
     }
+
 
 
