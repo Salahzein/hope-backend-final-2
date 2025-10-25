@@ -9,7 +9,6 @@ from app.services.reddit_service import RedditService
 from app.services.fast_lead_filter import FastLeadFilter
 from app.services.business_mapping import get_business_options as get_business_mapping_options, get_industry_options as get_industry_mapping_options
 from app.services.tiered_subreddit_mapping import get_tiered_subreddits, get_tier_info
-from app.services.result_cache import result_cache
 from app.models.lead import Lead
 from app.database import get_db, User, SearchMetrics
 from app.utils.cost_calculator import get_posts_to_scrape, validate_user_limits, get_user_usage_summary
@@ -120,12 +119,13 @@ async def search_leads(request: LeadSearchRequest, db: Session = Depends(get_db)
         # Get tiered subreddits for the business type based on request tracking
         business_type = request.business or request.industry
         
-        # Increment user request count for tier switching
+        # Increment user request count for tier switching (business-specific counter)
         from app.services.tiered_subreddit_mapping import increment_user_request_count
         user_id = request.user_id or "anonymous"
-        request_number = increment_user_request_count(user_id)
+        tier_key = f"{user_id}_{business_type}"  # Business-specific counter
+        request_number = increment_user_request_count(tier_key)
         
-        print(f"🚀 TIERED ROUTER DEBUG: Request #{request_number} for '{business_type}'")
+        print(f"🚀 TIERED ROUTER DEBUG: Request #{request_number} for '{business_type}' (key: {tier_key})")
         
         # Get tier information for response (tier switching enabled)
         tier_info = get_tier_info(business_type, request_number)
@@ -137,62 +137,27 @@ async def search_leads(request: LeadSearchRequest, db: Session = Depends(get_db)
         # Tier quality notice
         quality_notice = f" ({tier_info['quality_note']})"
         
-        # Initialize filter_metrics to avoid NameError
-        filter_metrics = None
-        
-        # Check cache first
-        cached_result = result_cache.get_cached_results(
-            request.problem_description, 
-            business_type, 
-            "all_time",  # Fixed time range for beta
-            request.user_id or "anonymous",
-            request.result_count  # Include result_count in cache key
+        # Always fetch fresh results (no cache)
+        posts_per_sub = max(1, posts_needed // len(subreddits))  # Distribute posts across subreddits
+        logger.info(f"🔄 Fetching fresh results from Reddit: {posts_needed} total posts ({posts_per_sub} per sub)")
+        posts = reddit_service.fetch_posts_from_multiple_subreddits(
+            subreddits, 
+            query=request.problem_description,
+            limit_per_sub=posts_per_sub,  # Dynamic limit based on 15:1 ratio
+            time_range="all_time"  # Fixed time range for beta
         )
         
-        if cached_result is not None:
-            # Return cached results
-            leads, result_age_hours = cached_result
-            logger.info(f"📦 Using cached results (age: {result_age_hours:.1f} hours)")
-            # Set default metrics for cached results
-            filter_metrics = {
-                "tokens_used": 0,
-                "cost": 0.0,
-                "model_used": "cached",
-                "posts_analyzed": 0,
-                "results_returned": len(leads)
-            }
-        else:
-            # Fetch fresh results with calculated posts needed
-            posts_per_sub = max(1, posts_needed // len(subreddits))  # Distribute posts across subreddits
-            logger.info(f"🔄 Fetching fresh results from Reddit: {posts_needed} total posts ({posts_per_sub} per sub)")
-            posts = reddit_service.fetch_posts_from_multiple_subreddits(
-                subreddits, 
-                query=request.problem_description,
-                limit_per_sub=posts_per_sub,  # Dynamic limit based on 15:1 ratio
-                time_range="all_time"  # Fixed time range for beta
-            )
-            
-            logger.info(f"Fetched {len(posts)} total posts from Reddit")
-            
-            # Filter posts using fast lead filter
-            leads, filter_metrics = lead_filter.filter_posts(posts, request.problem_description, business_type)
-            if filter_metrics:
-                logger.info(f"📊 Filter metrics: {filter_metrics}")
-            
-            # Target custom result count (AI will return best available)
-            target_leads = leads[:request.result_count]
-            
-            # Cache the results
-            result_cache.cache_results(
-                request.problem_description,
-                business_type,
-                "all_time",
-                request.user_id or "anonymous",
-                (target_leads, 0.0),  # Cache with fresh age
-                request.result_count  # Include result_count in cache key
-            )
-            
-            result_age_hours = 0.0  # Fresh results
+        logger.info(f"Fetched {len(posts)} total posts from Reddit")
+        
+        # Filter posts using fast lead filter
+        leads, filter_metrics = lead_filter.filter_posts(posts, request.problem_description, business_type)
+        if filter_metrics:
+            logger.info(f"📊 Filter metrics: {filter_metrics}")
+        
+        # Target custom result count (AI will return best available)
+        target_leads = leads[:request.result_count]
+        
+        result_age_hours = 0.0  # Always fresh (no cache)
         
         # Update user usage tracking - deduct exactly what was requested
         final_results_count = len(target_leads if 'target_leads' in locals() else leads)
