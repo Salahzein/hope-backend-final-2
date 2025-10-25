@@ -3,68 +3,169 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Simplified subreddit mappings for beta launch
-# 3 primary subreddits + 1 backup per business/industry type
-SIMPLIFIED_SUBREDDIT_MAPPINGS: Dict[str, Dict[str, List[str]]] = {
-    # Business Types (Specific)
+# TIERED SUBREDDIT MAPPINGS - 4 Tiers per business/industry
+# Tier 1 = Most relevant, Tier 4 = Less relevant
+TIERED_SUBREDDIT_MAPPINGS: Dict[str, Dict[int, List[str]]] = {
+    # Business Types
     "SaaS Companies": {
-        "primary": ["SaaS", "startups", "Entrepreneur"],
-        "backup": ["IndieDev"]
+        1: ["SaaS", "startups", "Entrepreneur"],  # Most relevant (PRIMARY)
+        2: ["IndieHackers", "microSaaS", "EntrepreneurRideAlong"],
+        3: ["smallbusiness", "Entrepreneur", "business"],
+        4: ["marketing", "sales", "freelance"]
     },
     "App Developers": {
-        "primary": ["SaaS", "startups", "Entrepreneur"],
-        "backup": ["IndieDev"]
+        1: ["SaaS", "startups", "Entrepreneur"],
+        2: ["IndieHackers", "EntrepreneurRideAlong", "programming"],
+        3: ["webdev", "learnprogramming", "web_design"],
+        4: ["freelance", "forhire", "careers"]
     },
-    # ... (keeping other mappings the same)
+    "E-commerce Stores": {
+        1: ["ecommerce", "dropshipping", "Shopify"],
+        2: ["AmazonSeller", "Entrepreneur", "smallbusiness"],
+        3: ["marketing", "SEO", "digital_marketing"],
+        4: ["business", "freelance", "entrepreneur"]
+    },
+    "Marketing Agencies": {
+        1: ["marketing", "SEO", "digital_marketing"],
+        2: ["PPC", "socialmedia", "content_marketing"],
+        3: ["Entrepreneur", "business", "smallbusiness"],
+        4: ["freelance", "forhire", "webdev"]
+    },
+    "Freelance Designers": {
+        1: ["freelance", "graphic_design", "Design"],
+        2: ["DesignCritiques", "web_design", "UI_Design"],
+        3: ["Entrepreneur", "smallbusiness", "marketing"],
+        4: ["forhire", "workonline", "careers"]
+    },
+    "Coffee Shops / Cafés": {
+        1: ["CoffeeShopOwners", "Coffee", "Barista"],
+        2: ["smallbusiness", "Entrepreneur", "restaurant"],
+        3: ["marketing", "SEO", "LocalSEO"],
+        4: ["business", "finance", "investing"]
+    },
+    "Online Course Creators": {
+        1: ["online_instructors", "InstructionalDesign", "edtech"],
+        2: ["Entrepreneur", "marketing", "digital_marketing"],
+        3: ["business", "smallbusiness", "SEO"],
+        4: ["webdev", "web_design", "content_marketing"]
+    },
+    "Local Service Businesses": {
+        1: ["smallbusiness", "Entrepreneur", "LocalSEO"],
+        2: ["marketing", "SEO", "PPC"],
+        3: ["business", "finance", "investing"],
+        4: ["webdev", "web_design", "forhire"]
+    },
+    "Consultants / Coaches": {
+        1: ["consulting", "Coaching", "Entrepreneur"],
+        2: ["business", "smallbusiness", "marketing"],
+        3: ["freelance", "forhire", "careers"],
+        4: ["webdev", "web_design", "content_marketing"]
+    },
+    "Jobs and Hiring": {
+        1: ["jobs", "jobhunting", "layoffs"],
+        2: ["careers", "resumes", "interviewing"],
+        3: ["workonline", "forhire", "freelance"],
+        4: ["Entrepreneur", "smallbusiness", "business"]
+    },
+    
+    # Industry Types
+    "SaaS / Tech": {
+        1: ["SaaS", "startups", "Entrepreneur"],
+        2: ["IndieHackers", "microSaaS", "EntrepreneurRideAlong"],
+        3: ["smallbusiness", "Entrepreneur", "business"],
+        4: ["marketing", "sales", "freelance"]
+    },
+    "E-commerce": {
+        1: ["ecommerce", "dropshipping", "Shopify"],
+        2: ["AmazonSeller", "Entrepreneur", "smallbusiness"],
+        3: ["marketing", "SEO", "digital_marketing"],
+        4: ["business", "freelance", "entrepreneur"]
+    },
+    "Marketing & Advertising": {
+        1: ["marketing", "SEO", "digital_marketing"],
+        2: ["PPC", "socialmedia", "content_marketing"],
+        3: ["Entrepreneur", "business", "smallbusiness"],
+        4: ["freelance", "forhire", "webdev"]
+    },
+    "Education / Edtech": {
+        1: ["online_instructors", "InstructionalDesign", "edtech"],
+        2: ["Entrepreneur", "marketing", "digital_marketing"],
+        3: ["business", "smallbusiness", "SEO"],
+        4: ["webdev", "web_design", "content_marketing"]
+    },
+    "Food & Beverage": {
+        1: ["CoffeeShopOwners", "Coffee", "Barista"],
+        2: ["smallbusiness", "Entrepreneur", "restaurant"],
+        3: ["marketing", "SEO", "LocalSEO"],
+        4: ["business", "finance", "investing"]
+    },
+    "Local Services": {
+        1: ["smallbusiness", "Entrepreneur", "LocalSEO"],
+        2: ["marketing", "SEO", "PPC"],
+        3: ["business", "finance", "investing"],
+        4: ["webdev", "web_design", "forhire"]
+    },
+    "Finance / Fintech": {
+        1: ["Fintech", "PersonalFinance", "FinancialPlanning"],
+        2: ["investing", "Entrepreneur", "smallbusiness"],
+        3: ["business", "finance", "marketing"],
+        4: ["webdev", "web_design", "forhire"]
+    },
+    "Freelancers / Creatives": {
+        1: ["freelance", "graphic_design", "Design"],
+        2: ["DesignCritiques", "web_design", "UI_Design"],
+        3: ["Entrepreneur", "smallbusiness", "marketing"],
+        4: ["forhire", "workonline", "careers"]
+    },
+    "Consulting / Coaching": {
+        1: ["consulting", "Coaching", "Entrepreneur"],
+        2: ["business", "smallbusiness", "marketing"],
+        3: ["freelance", "forhire", "careers"],
+        4: ["webdev", "web_design", "content_marketing"]
+    }
 }
 
 # In-memory storage for user request counts
 user_request_counts: Dict[str, int] = {}
 
-def get_beta_subreddits(business_type: str, use_backup: bool = False) -> List[str]:
-    """Get subreddits for beta launch - 3 primary + optional backup"""
-    
-    # DIAGNOSTIC LOGGING
-    logger.info(f"🔍 BETA SYSTEM DEBUG START")
-    logger.info(f"   business_type='{business_type}', use_backup={use_backup}")
-    logger.info(f"   Total user_request_counts entries: {len(user_request_counts)}")
-    logger.info(f"   All user_ids in memory: {list(user_request_counts.keys())}")
-    logger.info(f"   Full user_request_counts: {user_request_counts}")
-    print(f"🔍 BETA SYSTEM DEBUG: business_type='{business_type}', use_backup={use_backup}")
-    print(f"   user_request_counts: {user_request_counts}")
-    
-    if business_type not in SIMPLIFIED_SUBREDDIT_MAPPINGS:
-        logger.warning(f"❌ Business type '{business_type}' not found in beta mappings, using fallback")
-        print(f"❌ BETA SYSTEM DEBUG: Business type '{business_type}' not found in beta mappings, using fallback")
-        from app.services.business_mapping import get_subreddits_for_business
-        fallback_subreddits = get_subreddits_for_business(business_type)[:3]  # Take first 3
-        logger.info(f"🔄 FALLBACK TRIGGERED: Returning {fallback_subreddits}")
-        print(f"🔄 BETA SYSTEM DEBUG: Fallback subreddits: {fallback_subreddits}")
-        return fallback_subreddits
-    
-    mapping = SIMPLIFIED_SUBREDDIT_MAPPINGS[business_type]
-    subreddits = mapping["primary"].copy()
-    
-    if use_backup:
-        subreddits.extend(mapping["backup"])
-    
-    logger.info(f"✅ BETA SYSTEM: Using subreddits: {subreddits}")
-    logger.info(f"🔍 BETA SYSTEM DEBUG END")
-    print(f"✅ BETA SYSTEM DEBUG: Using subreddits: {subreddits}")
-    return subreddits
-
-# Keep old function for backward compatibility but redirect to new system
 def get_tiered_subreddits(business_type: str, request_number: int) -> List[str]:
-    """Legacy function - redirects to new beta system"""
-    logger.info(f"📞 TIERED_CALLED: business_type='{business_type}', request_number={request_number}")
-    print(f"📞 TIERED_CALLED DEBUG: business_type='{business_type}', request_number={request_number}")
-    return get_beta_subreddits(business_type, use_backup=False)
+    """
+    Get subreddits for a specific tier based on request number
+    
+    Args:
+        business_type: The business/industry type (e.g., "SaaS Companies")
+        request_number: The request number (1-4)
+        
+    Returns:
+        List of subreddits for the specified tier
+    """
+    logger.info(f"🔍 TIERED SYSTEM: business_type='{business_type}', request_number={request_number}")
+    
+    # Determine tier from request number
+    if request_number <= 1:
+        tier = 1
+    elif request_number == 2:
+        tier = 2
+    elif request_number == 3:
+        tier = 3
+    else:
+        tier = 4
+    
+    # Check if business type exists in tiered mappings
+    if business_type in TIERED_SUBREDDIT_MAPPINGS:
+        tier_mapping = TIERED_SUBREDDIT_MAPPINGS[business_type]
+        subreddits = tier_mapping.get(tier, tier_mapping[1])  # Fallback to tier 1 if tier doesn't exist
+        logger.info(f"✅ TIERED SYSTEM: Using tier {tier} subreddits for '{business_type}': {subreddits}")
+        return subreddits
+    else:
+        # Fallback for unknown business types
+        logger.warning(f"⚠️ Business type '{business_type}' not found in tiered mappings, using default")
+        return ["Entrepreneur", "startups", "smallbusiness"]
 
 def get_user_request_count(user_id: str) -> int:
     """Get the current request count for a user"""
     count = user_request_counts.get(user_id, 0)
     logger.info(f"📊 GET COUNT: user_id='{user_id}' → count={count}")
-    print(f"📊 GET COUNT DEBUG: user_id='{user_id}' → count={count}")
     return count
 
 def increment_user_request_count(user_id: str) -> int:
@@ -73,9 +174,6 @@ def increment_user_request_count(user_id: str) -> int:
     new_count = current_count + 1
     user_request_counts[user_id] = new_count
     logger.info(f"📈 INCREMENT COUNT: user_id='{user_id}' → {current_count} → {new_count}")
-    logger.info(f"   State after increment: {user_request_counts}")
-    print(f"📈 INCREMENT COUNT DEBUG: user_id='{user_id}' → {current_count} → {new_count}")
-    print(f"   State after increment: {user_request_counts}")
     return new_count
 
 def reset_user_request_count(user_id: str):
@@ -84,27 +182,26 @@ def reset_user_request_count(user_id: str):
     if user_id in user_request_counts:
         del user_request_counts[user_id]
     logger.info(f"🔄 RESET COUNT: user_id='{user_id}' → {old_count} → 0")
-    print(f"🔄 RESET COUNT DEBUG: user_id='{user_id}' → {old_count} → 0")
 
-def get_current_tier(business_type: str, request_number: int) -> int:
-    """Get the current tier number for display purposes"""
-    return 1  # Always tier 1 for beta
-
-def get_beta_info(business_type: str) -> Dict[str, any]:
-    """Get beta system information including subreddits and quality note"""
-    subreddits = get_beta_subreddits(business_type, use_backup=False)
+def get_tier_info(business_type: str, request_number: int) -> Dict[str, any]:
+    """Get tier information including subreddits and quality note"""
+    tier = min(request_number, 4)
+    subreddits = get_tiered_subreddits(business_type, request_number)
+    
+    quality_notes = {
+        1: "Beta Quality - Most relevant subreddits for optimal results",
+        2: "Good Quality - Relevant subreddits for quality results",
+        3: "Moderate Quality - Additional subreddits for broader coverage",
+        4: "Basic Quality - Expanded subreddits for comprehensive results"
+    }
     
     return {
-        "tier": 1,  # Always tier 1 for beta (highest quality)
+        "tier": tier,
         "subreddits": subreddits,
-        "quality_note": "Beta Quality - Most relevant subreddits for optimal results",
-        "is_final_tier": True,
+        "quality_note": quality_notes.get(tier, quality_notes[1]),
+        "is_final_tier": tier == 4,
         "posts_per_subreddit": 500,
         "total_posts": len(subreddits) * 500
     }
 
-# Keep old function for backward compatibility
-def get_tier_info(business_type: str, request_number: int) -> Dict[str, any]:
-    """Legacy function - redirects to new beta system"""
-    return get_beta_info(business_type)
 
