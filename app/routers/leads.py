@@ -1,18 +1,15 @@
 from fastapi import APIRouter, HTTPException, Depends
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import List, Optional
 import logging
 import time
-import csv
-import io
-# import pandas as pd
 from sqlalchemy.orm import Session
 from app.services.reddit_service import RedditService
 from app.services.fast_lead_filter import FastLeadFilter
-from app.services.business_mapping_hyperfocus import get_business_options as get_business_mapping_hyperfocus_options, get_industry_options as get_industry_mapping_options
-from app.services.tiered_subreddit_mapping import get_beta_subreddits, get_beta_info
-# Cache removed for unique results
+from app.services.business_mapping import get_business_options as get_business_mapping_options, get_industry_options as get_industry_mapping_options
+from app.services.tiered_subreddit_mapping import get_tiered_subreddits, get_tier_info
+from app.services.result_cache import result_cache
 from app.models.lead import Lead
 from app.database import get_db, User, SearchMetrics
 from app.utils.cost_calculator import get_posts_to_scrape, validate_user_limits, get_user_usage_summary
@@ -45,15 +42,15 @@ async def debug_test():
     try:
         from app.services.reddit_service import RedditService
         from app.services.fast_lead_filter import FastLeadFilter
-        from app.services.tiered_subreddit_mapping import get_beta_info
+        from app.services.tiered_subreddit_mapping import get_tier_info
         
         # Test basic components
         reddit_service = RedditService()
         lead_filter = FastLeadFilter()
-        beta_info = get_beta_info('SaaS Companies')
+        tier_info = get_tier_info('SaaS Companies', 1)
         
         # Test a simple Reddit fetch
-        posts = reddit_service.fetch_posts_from_subreddit('SaaS', limit=1000, time_range='all_time')
+        posts = reddit_service.fetch_posts_from_subreddit('SaaS', limit=5, time_range='all_time')
         
         # Test filtering
         leads = lead_filter.filter_posts(posts, 'struggling to get customers', 'SaaS Companies', 'all_time')
@@ -62,7 +59,7 @@ async def debug_test():
             "status": "success",
             "reddit_posts": len(posts),
             "filtered_leads": len(leads),
-            "beta_info": beta_info,
+            "tier_info": tier_info,
             "message": "All components working"
         }
     except Exception as e:
@@ -111,21 +108,6 @@ async def search_leads(request: LeadSearchRequest, db: Session = Depends(get_db)
                 
                 results_remaining = remaining_results
                 posts_remaining = remaining_posts
-                
-                # Check search rate limit (1 search per minute)
-                current_time = time.time()
-                if hasattr(user, 'last_search_time') and user.last_search_time:
-                    time_since_last_search = current_time - user.last_search_time
-                    if time_since_last_search < 60:  # 60 seconds = 1 minute
-                        remaining_wait = 60 - time_since_last_search
-                        raise HTTPException(
-                            status_code=429, 
-                            detail=f"Search rate limit: Please wait {int(remaining_wait)} seconds before your next search"
-                        )
-                
-                # Update last search time
-                user.last_search_time = current_time
-                db.commit()
         except (ValueError, TypeError):
             # Invalid user_id format, continue as anonymous user
             pass
@@ -135,45 +117,82 @@ async def search_leads(request: LeadSearchRequest, db: Session = Depends(get_db)
         reddit_service = RedditService()
         lead_filter = FastLeadFilter()
         
-        # Get beta subreddits for the business type
+        # Get tiered subreddits for the business type based on request tracking
         business_type = request.business or request.industry
-        print(f"🚀 BETA ROUTER DEBUG: About to call get_beta_subreddits with business_type='{business_type}'")
         
-        # Get beta information for response
-        beta_info = get_beta_info(business_type)
-        subreddits = beta_info["subreddits"]
+        # Increment user request count for tier switching
+        from app.services.tiered_subreddit_mapping import increment_user_request_count
+        user_id = request.user_id or "anonymous"
+        request_number = increment_user_request_count(user_id)
         
-        print(f"🚀 BETA ROUTER DEBUG: Got subreddits: {subreddits}")
-        logger.info(f"Beta Search: Searching in {len(subreddits)} subreddits: {subreddits}")
+        print(f"🚀 TIERED ROUTER DEBUG: Request #{request_number} for '{business_type}'")
         
-        # Beta quality notice
-        quality_notice = f" (Beta Quality - {beta_info['quality_note']})"
+        # Get tier information for response (tier switching enabled)
+        tier_info = get_tier_info(business_type, request_number)
+        subreddits = tier_info["subreddits"]
+        
+        print(f"🚀 TIERED ROUTER DEBUG: Got subreddits: {subreddits}")
+        logger.info(f"Tiered Search: Searching in {len(subreddits)} subreddits: {subreddits} (Tier {tier_info['tier']})")
+        
+        # Tier quality notice
+        quality_notice = f" ({tier_info['quality_note']})"
         
         # Initialize filter_metrics to avoid NameError
         filter_metrics = None
         
-        # Fetch fresh results (no caching for unique results)
-        logger.info("🔄 Fetching fresh results (cache disabled for diversity)")
-        posts_per_sub = max(1, posts_needed // len(subreddits))  # Distribute posts across subreddits
-        logger.info(f"🔄 Fetching fresh results from Reddit: {posts_needed} total posts ({posts_per_sub} per sub)")
-        posts = reddit_service.fetch_posts_from_multiple_subreddits(
-            subreddits, 
-            query=request.problem_description,
+        # Check cache first
+        cached_result = result_cache.get_cached_results(
+            request.problem_description, 
+            business_type, 
+            "all_time",  # Fixed time range for beta
+            request.user_id or "anonymous",
+            request.result_count  # Include result_count in cache key
+        )
+        
+        if cached_result is not None:
+            # Return cached results
+            leads, result_age_hours = cached_result
+            logger.info(f"📦 Using cached results (age: {result_age_hours:.1f} hours)")
+            # Set default metrics for cached results
+            filter_metrics = {
+                "tokens_used": 0,
+                "cost": 0.0,
+                "model_used": "cached",
+                "posts_analyzed": 0,
+                "results_returned": len(leads)
+            }
+        else:
+            # Fetch fresh results with calculated posts needed
+            posts_per_sub = max(1, posts_needed // len(subreddits))  # Distribute posts across subreddits
+            logger.info(f"🔄 Fetching fresh results from Reddit: {posts_needed} total posts ({posts_per_sub} per sub)")
+            posts = reddit_service.fetch_posts_from_multiple_subreddits(
+                subreddits, 
+                query=request.problem_description,
                 limit_per_sub=posts_per_sub,  # Dynamic limit based on 15:1 ratio
                 time_range="all_time"  # Fixed time range for beta
             )
             
-        logger.info(f"Fetched {len(posts)} total posts from Reddit")
+            logger.info(f"Fetched {len(posts)} total posts from Reddit")
             
-        # Filter posts using fast lead filter
-        leads, filter_metrics = lead_filter.filter_posts(posts, request.problem_description, business_type)
-        if filter_metrics:
-            logger.info(f"📊 Filter metrics: {filter_metrics}")
+            # Filter posts using fast lead filter
+            leads, filter_metrics = lead_filter.filter_posts(posts, request.problem_description, business_type)
+            if filter_metrics:
+                logger.info(f"📊 Filter metrics: {filter_metrics}")
             
-        # Target custom result count (AI will return best available)
+            # Target custom result count (AI will return best available)
             target_leads = leads[:request.result_count]
             
-            result_age_hours = 0.0  # Fresh results (no caching)
+            # Cache the results
+            result_cache.cache_results(
+                request.problem_description,
+                business_type,
+                "all_time",
+                request.user_id or "anonymous",
+                (target_leads, 0.0),  # Cache with fresh age
+                request.result_count  # Include result_count in cache key
+            )
+            
+            result_age_hours = 0.0  # Fresh results
         
         # Update user usage tracking - deduct exactly what was requested
         final_results_count = len(target_leads if 'target_leads' in locals() else leads)
@@ -267,7 +286,7 @@ async def search_leads(request: LeadSearchRequest, db: Session = Depends(get_db)
             message=f"Found {final_results_count} high-quality leads for '{selection_type}' with problem: '{request.problem_description}'{quality_notice}",
             timestamp=current_timestamp,
             result_age_hours=result_age_hours,
-            tier_info=beta_info,
+            tier_info=tier_info,
             results_remaining=results_remaining,
             posts_remaining=posts_remaining,
             posts_analyzed=posts_analyzed,
@@ -288,7 +307,7 @@ async def search_leads(request: LeadSearchRequest, db: Session = Depends(get_db)
 @router.get("/business-options")
 async def get_business_options():
     """Get available business options"""
-    return {"businesses": get_business_mapping_hyperfocus_options()}
+    return {"businesses": get_business_mapping_options()}
 
 @router.get("/industry-options")
 async def get_industry_options():
@@ -384,121 +403,3 @@ async def debug_ai_config():
             "error": str(e),
             "message": "Debug config error"
         }
-
-@router.post("/export/csv")
-async def export_search_results_csv(request: LeadSearchRequest, db: Session = Depends(get_db)):
-    """Export search results to CSV format"""
-    try:
-        # Perform the same search as the main endpoint
-        logger.info(f"Exporting search results to CSV: business='{request.business}', industry='{request.industry}', problem='{request.problem_description}'")
-        
-        # Get subreddits and perform search (same logic as main endpoint)
-        business_type = request.business or request.industry
-        subreddits = get_beta_subreddits(business_type, use_backup=False)
-        
-        # Initialize services
-        reddit_service = RedditService()
-        lead_filter = FastLeadFilter()
-        
-        # Fetch posts
-        posts = reddit_service.fetch_posts_from_multiple_subreddits(
-            subreddits,
-            query=request.problem_description,
-            limit_per_sub=50,
-            time_range="all_time"
-        )
-        
-        # Filter posts
-        leads, _ = lead_filter.filter_posts(posts, request.problem_description, business_type)
-        
-        # Limit results
-        limited_leads = leads[:request.limit]
-        
-        # Create CSV content
-        output = io.StringIO()
-        writer = csv.writer(output)
-        
-        # Write header
-        writer.writerow(['Post Title', 'Post Link', 'Author Name', 'Subreddit'])
-        
-        # Write data
-        for lead in limited_leads:
-            writer.writerow([
-                lead.title,
-                f"https://reddit.com{lead.permalink}",
-                lead.author,
-                lead.subreddit
-            ])
-        
-        # Prepare response
-        output.seek(0)
-        csv_content = output.getvalue()
-        output.close()
-        
-        return StreamingResponse(
-            io.BytesIO(csv_content.encode('utf-8')),
-            media_type='text/csv',
-            headers={'Content-Disposition': 'attachment; filename="search_results.csv"'}
-        )
-        
-    except Exception as e:
-        logger.error(f"CSV export failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
-
-@router.post("/export/excel")
-async def export_search_results_excel(request: LeadSearchRequest, db: Session = Depends(get_db)):
-    """Export search results to Excel format"""
-    try:
-        # Perform the same search as the main endpoint
-        logger.info(f"Exporting search results to Excel: business='{request.business}', industry='{request.industry}', problem='{request.problem_description}'")
-        
-        # Get subreddits and perform search (same logic as main endpoint)
-        business_type = request.business or request.industry
-        subreddits = get_beta_subreddits(business_type, use_backup=False)
-        
-        # Initialize services
-        reddit_service = RedditService()
-        lead_filter = FastLeadFilter()
-        
-        # Fetch posts
-        posts = reddit_service.fetch_posts_from_multiple_subreddits(
-            subreddits,
-            query=request.problem_description,
-            limit_per_sub=50,
-            time_range="all_time"
-        )
-        
-        # Filter posts
-        leads, _ = lead_filter.filter_posts(posts, request.problem_description, business_type)
-        
-        # Limit results
-        limited_leads = leads[:request.limit]
-        
-        # Create DataFrame
-        data = []
-        for lead in limited_leads:
-            data.append({
-                'Post Title': lead.title,
-                'Post Link': f"https://reddit.com{lead.permalink}",
-                'Author Name': lead.author,
-                'Subreddit': lead.subreddit
-            })
-        
-        df = pd.DataFrame(data)
-        
-        # Create Excel file in memory
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df.to_excel(writer, sheet_name='Search Results', index=False)
-        
-        output.seek(0)
-        
-        return StreamingResponse(
-            io.BytesIO(output.getvalue()),
-            media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            headers={'Content-Disposition': 'attachment; filename="search_results.xlsx"'}
-        )
-        
-    except Exception as e:
-        logger.error(f"Excel export failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
