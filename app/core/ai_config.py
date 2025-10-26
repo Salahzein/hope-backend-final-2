@@ -8,7 +8,7 @@ USE_OPENAI = False   # DISABLED: Use rule-based filtering for speed and accuracy
 USE_IMPROVED_AI_SCORING = True  # Using improved AI scoring (the working one)
 
 # AI Threshold Configuration  
-AI_RELEVANCE_THRESHOLD = 5  # Very low threshold to get results for testing
+AI_RELEVANCE_THRESHOLD = 30  # Very low threshold to get results for testing
 
 def get_ai_config():
     """Get current AI configuration"""
