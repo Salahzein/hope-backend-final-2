@@ -150,7 +150,7 @@ async def search_leads(request: LeadSearchRequest, db: Session = Depends(get_db)
         logger.info(f"Fetched {len(posts)} total posts from Reddit")
         
         # Filter posts using fast lead filter
-        leads, filter_metrics = lead_filter.filter_posts(posts, request.problem_description, business_type)
+        leads, filter_metrics = lead_filter.filter_posts(posts, request.problem_description, business_type, request_number=request_number)
         if filter_metrics:
             logger.info(f"📊 Filter metrics: {filter_metrics}")
         
