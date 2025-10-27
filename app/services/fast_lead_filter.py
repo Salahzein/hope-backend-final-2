@@ -34,9 +34,17 @@ class FastLeadFilter:
                     business_type: str, industry_type: Optional[str] = None) -> Tuple[List[Lead], Dict[str, Any]]:
         """
         Filter posts using rule-based system and add OpenAI summaries.
+        Args:
+            request_number: Tier number (1-4) to determine threshold. Tiers 1-3 use threshold 5, Tier 4 uses threshold 25.
         Returns: (filtered_leads, metrics)
         """
-        logger.info(f"🚀 Fast filtering: {len(posts)} posts for '{problem_description}'")
+        # Determine tier-specific threshold
+        if request_number <= 3:  # Tiers 1-3: Keep existing behavior
+            dynamic_threshold = self.ai_config["threshold"]  # 5
+        else:  # Tier 4: Higher threshold for better quality
+            dynamic_threshold = 25
+        
+        logger.info(f"🚀 Fast filtering: {len(posts)} posts for '{problem_description}' (Tier {request_number}, threshold={dynamic_threshold})")
         
         # Reset metrics
         self._last_metrics = {
@@ -145,7 +153,7 @@ class FastLeadFilter:
             post["relevance_score"] = score
             
             # Apply threshold
-            if score >= self.ai_config["threshold"]:
+            if score >= dynamic_threshold:
                 filtered_posts.append(post)
         
         # Sort by relevance score (highest first)
@@ -423,3 +431,4 @@ class FastLeadFilter:
     def get_last_metrics(self) -> Optional[Dict[str, Any]]:
         """Get metrics from the last filtering operation."""
         return self._last_metrics
+
