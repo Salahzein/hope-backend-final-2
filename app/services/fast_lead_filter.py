@@ -42,7 +42,7 @@ class FastLeadFilter:
         if request_number <= 3:  # Tiers 1-3: Keep existing behavior
             dynamic_threshold = self.ai_config["threshold"]  # 5
         else:  # Tier 4: Higher threshold for better quality
-            dynamic_threshold = 25
+            dynamic_threshold = 15
         
         logger.info(f"🚀 Fast filtering: {len(posts)} posts for '{problem_description}' (Tier {request_number}, threshold={dynamic_threshold})")
         
@@ -59,7 +59,7 @@ class FastLeadFilter:
         
         try:
             # Step 1: Rule-based filtering (fast and accurate)
-            filtered_posts = self._rule_based_filter(posts, problem_description, business_type, industry_type)
+            filtered_posts = self._rule_based_filter(posts, problem_description, business_type, industry_type, dynamic_threshold)
             logger.info(f"✅ Rule-based filtering: {len(posts)} -> {len(filtered_posts)} posts")
             
             # Step 2: Create leads from filtered posts
@@ -86,7 +86,7 @@ class FastLeadFilter:
 
     def _rule_based_filter(self, posts: List[Dict[str, Any]], problem_description: str, 
                           business_type: str, industry_type: Optional[str] = None) -> List[Dict[str, Any]]:
-        """
+                          business_type: str, industry_type: Optional[str] = None, threshold: int = 5) -> List[Dict[str, Any]]:
         Rule-based filtering - the proven system that worked before.
         """
         # Get business/industry keywords
@@ -153,7 +153,7 @@ class FastLeadFilter:
             post["relevance_score"] = score
             
             # Apply threshold
-            if score >= dynamic_threshold:
+            if score >= threshold:
                 filtered_posts.append(post)
         
         # Sort by relevance score (highest first)
@@ -431,5 +431,6 @@ class FastLeadFilter:
     def get_last_metrics(self) -> Optional[Dict[str, Any]]:
         """Get metrics from the last filtering operation."""
         return self._last_metrics
+
 
 
