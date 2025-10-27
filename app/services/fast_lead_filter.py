@@ -14,7 +14,7 @@ from app.models.lead import Lead
 from app.services.ai_enhancer import AIEnhancer, EnhancedQuery
 from app.services.summary_service import SummaryService
 from app.core.ai_config import get_ai_config
-from app.services.business_mapping import BUSINESS_MAPPINGS, INDUSTRY_MAPPINGS
+from app.services.business_mapping_hyperfocus import BUSINESS_MAPPINGS, INDUSTRY_MAPPINGS
 
 logger = logging.getLogger(__name__)
 
@@ -431,6 +431,7 @@ Rule-based filtering - the proven system that worked before.
     def get_last_metrics(self) -> Optional[Dict[str, Any]]:
         """Get metrics from the last filtering operation."""
         return self._last_metrics
+
 
 
 
