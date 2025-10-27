@@ -85,9 +85,9 @@ class FastLeadFilter:
             return [], self._last_metrics or {}
 
     def _rule_based_filter(self, posts: List[Dict[str, Any]], problem_description: str, 
-                          business_type: str, industry_type: Optional[str] = None) -> List[Dict[str, Any]]:
                           business_type: str, industry_type: Optional[str] = None, threshold: int = 5) -> List[Dict[str, Any]]:
-        Rule-based filtering - the proven system that worked before.
+        """
+Rule-based filtering - the proven system that worked before.
         """
         # Get business/industry keywords
         business_keywords = BUSINESS_MAPPINGS.get(business_type, {}).get("keywords", [])
@@ -431,6 +431,7 @@ class FastLeadFilter:
     def get_last_metrics(self) -> Optional[Dict[str, Any]]:
         """Get metrics from the last filtering operation."""
         return self._last_metrics
+
 
 
 
