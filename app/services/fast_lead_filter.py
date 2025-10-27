@@ -42,7 +42,7 @@ class FastLeadFilter:
         if request_number <= 3:  # Tiers 1-3: Keep existing behavior
             dynamic_threshold = self.ai_config["threshold"]  # 5
         else:  # Tier 4: Higher threshold for better quality
-            dynamic_threshold = 15
+            dynamic_threshold = 10
         
         logger.info(f"🚀 Fast filtering: {len(posts)} posts for '{problem_description}' (Tier {request_number}, threshold={dynamic_threshold})")
         
@@ -431,6 +431,7 @@ Rule-based filtering - the proven system that worked before.
     def get_last_metrics(self) -> Optional[Dict[str, Any]]:
         """Get metrics from the last filtering operation."""
         return self._last_metrics
+
 
 
 
