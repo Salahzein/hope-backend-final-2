@@ -7,7 +7,7 @@ import time
 from sqlalchemy.orm import Session
 from app.services.reddit_service import RedditService
 from app.services.fast_lead_filter import FastLeadFilter
-from app.services.business_mapping import get_business_options as get_business_mapping_options, get_industry_options as get_industry_mapping_options
+from app.services.business_mapping_hyperfocus import get_business_options as get_business_mapping_options, get_industry_options as get_industry_mapping_options         
 from app.services.tiered_subreddit_mapping import get_tiered_subreddits, get_tier_info
 from app.models.lead import Lead
 from app.database import get_db, User, SearchMetrics
