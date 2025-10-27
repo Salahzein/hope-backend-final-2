@@ -31,7 +31,7 @@ class FastLeadFilter:
         logger.info(f"🔧 Config: threshold={self.ai_config['threshold']}, use_openai={self.ai_config['use_openai']}")
 
     def filter_posts(self, posts: List[Dict[str, Any]], problem_description: str, 
-                    business_type: str, industry_type: Optional[str] = None) -> Tuple[List[Lead], Dict[str, Any]]:
+                    business_type: str, industry_type: Optional[str] = None, request_number: int = 1) -> Tuple[List[Lead], Dict[str, Any]]:
         """
         Filter posts using rule-based system and add OpenAI summaries.
         Args:
@@ -431,4 +431,5 @@ class FastLeadFilter:
     def get_last_metrics(self) -> Optional[Dict[str, Any]]:
         """Get metrics from the last filtering operation."""
         return self._last_metrics
+
 
