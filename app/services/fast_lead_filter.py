@@ -43,7 +43,7 @@ class FastLeadFilter:
         
         # Determine tier-specific threshold
         if tier == 1:  # Tier 1: High quality cutoff
-            dynamic_threshold = 12
+            dynamic_threshold = 13
         elif tier == 2:  # Tier 2: Even stricter quality
             dynamic_threshold = 16
         elif tier == 3:  # Tier 3: Higher to reduce noise
@@ -438,6 +438,7 @@ Rule-based filtering - the proven system that worked before.
     def get_last_metrics(self) -> Optional[Dict[str, Any]]:
         """Get metrics from the last filtering operation."""
         return self._last_metrics
+
 
 
 
