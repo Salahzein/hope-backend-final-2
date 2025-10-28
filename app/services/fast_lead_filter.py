@@ -18,6 +18,51 @@ from app.services.business_mapping_hyperfocus import BUSINESS_MAPPINGS, INDUSTRY
 
 logger = logging.getLogger(__name__)
 
+# Business-Specific Threshold Configuration
+# Each business/industry can have different quality thresholds per tier
+BUSINESS_THRESHOLDS = {
+    "SaaS Companies": {
+        1: 13,  # Tier 1: High quality cutoff
+        2: 16,  # Tier 2: Even stricter quality
+        3: 13,  # Tier 3: Higher to reduce noise
+        4: 14   # Tier 4: High threshold for noisy subreddits
+    },
+    "App Developers": {
+        1: 13,
+        2: 16,
+        3: 13,
+        4: 14
+    },
+    "E-commerce Stores": {
+        1: 13,
+        2: 16,
+        3: 13,
+        4: 14
+    },
+    "Jobs and Hiring": {
+        1: 13,  # Placeholder - to be optimized
+        2: 16,  # Placeholder - to be optimized
+        3: 13,  # Placeholder - to be optimized
+        4: 14   # Placeholder - to be optimized
+    },
+    # Industry types
+    "SaaS / Tech": {
+        1: 13,
+        2: 16,
+        3: 13,
+        4: 14
+    },
+    "E-commerce": {
+        1: 13,
+        2: 16,
+        3: 13,
+        4: 14
+    }
+}
+
+# Default thresholds if business type not found
+DEFAULT_THRESHOLDS = {1: 13, 2: 16, 3: 13, 4: 14}
+
 class FastLeadFilter:
     def __init__(self):
         self.ai_config = get_ai_config()
@@ -41,15 +86,9 @@ class FastLeadFilter:
         # Calculate the actual tier (1-4) from request_number (handles cycling)
         tier = ((request_number - 1) % 4) + 1
         
-        # Determine tier-specific threshold
-        if tier == 1:  # Tier 1: High quality cutoff
-            dynamic_threshold = 13
-        elif tier == 2:  # Tier 2: Even stricter quality
-            dynamic_threshold = 16
-        elif tier == 3:  # Tier 3: Higher to reduce noise
-            dynamic_threshold = 13
-        else:  # Tier 4: High threshold for noisy subreddits
-            dynamic_threshold = 14
+        # Get business-specific threshold (with fallback to defaults)
+        business_thresholds = BUSINESS_THRESHOLDS.get(business_type, DEFAULT_THRESHOLDS)
+        dynamic_threshold = business_thresholds.get(tier, 13)
         
         logger.info(f"🚀 Fast filtering: {len(posts)} posts for '{problem_description}' (Tier {request_number}, threshold={dynamic_threshold})")
         
@@ -438,6 +477,7 @@ Rule-based filtering - the proven system that worked before.
     def get_last_metrics(self) -> Optional[Dict[str, Any]]:
         """Get metrics from the last filtering operation."""
         return self._last_metrics
+
 
 
 
