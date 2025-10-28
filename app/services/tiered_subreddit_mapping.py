@@ -141,15 +141,8 @@ def get_tiered_subreddits(business_type: str, request_number: int) -> List[str]:
     """
     logger.info(f"🔍 TIERED SYSTEM: business_type='{business_type}', request_number={request_number}")
     
-    # Determine tier from request number
-    if request_number <= 1:
-        tier = 1
-    elif request_number == 2:
-        tier = 2
-    elif request_number == 3:
-        tier = 3
-    else:
-        tier = 4
+    # Determine tier from request number - cycles through tiers 1-4 indefinitely
+    tier = ((request_number - 1) % 4) + 1
     
     # Check if business type exists in tiered mappings
     if business_type in TIERED_SUBREDDIT_MAPPINGS:
