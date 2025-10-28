@@ -38,12 +38,15 @@ class FastLeadFilter:
             request_number: Tier number (1-4) to determine threshold. Tier 1=12, Tier 2=16, Tier 3=13, Tier 4=14.
         Returns: (filtered_leads, metrics)
         """
+        # Calculate the actual tier (1-4) from request_number (handles cycling)
+        tier = ((request_number - 1) % 4) + 1
+        
         # Determine tier-specific threshold
-        if request_number == 1:  # Tier 1: High quality cutoff
+        if tier == 1:  # Tier 1: High quality cutoff
             dynamic_threshold = 12
-        elif request_number == 2:  # Tier 2: Even stricter quality
+        elif tier == 2:  # Tier 2: Even stricter quality
             dynamic_threshold = 16
-        elif request_number == 3:  # Tier 3: Higher to reduce noise
+        elif tier == 3:  # Tier 3: Higher to reduce noise
             dynamic_threshold = 13
         else:  # Tier 4: High threshold for noisy subreddits
             dynamic_threshold = 14
@@ -435,6 +438,7 @@ Rule-based filtering - the proven system that worked before.
     def get_last_metrics(self) -> Optional[Dict[str, Any]]:
         """Get metrics from the last filtering operation."""
         return self._last_metrics
+
 
 
 
