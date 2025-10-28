@@ -35,14 +35,16 @@ class FastLeadFilter:
         """
         Filter posts using rule-based system and add OpenAI summaries.
         Args:
-            request_number: Tier number (1-4) to determine threshold. Tiers 1-3 use threshold 5, Tier 4 uses threshold 25.
+            request_number: Tier number (1-4) to determine threshold. Tiers 1-2 use threshold 12, Tier 3 uses threshold 5, Tier 4 uses threshold 15.
         Returns: (filtered_leads, metrics)
         """
         # Determine tier-specific threshold
-        if request_number <= 3:  # Tiers 1-3: Keep existing behavior
+        if request_number <= 2:  # Tiers 1-2: Higher threshold for better quality
+            dynamic_threshold = 12
+        elif request_number == 3:  # Tier 3: Keep current threshold for now
             dynamic_threshold = self.ai_config["threshold"]  # 5
         else:  # Tier 4: Higher threshold for better quality
-            dynamic_threshold = 10
+            dynamic_threshold = 15
         
         logger.info(f"🚀 Fast filtering: {len(posts)} posts for '{problem_description}' (Tier {request_number}, threshold={dynamic_threshold})")
         
