@@ -40,10 +40,10 @@ BUSINESS_THRESHOLDS = {
         4: 14
     },
     "Jobs and Hiring": {
-        1: 13,  # Placeholder - to be optimized
-        2: 16,  # Placeholder - to be optimized
-        3: 13,  # Placeholder - to be optimized
-        4: 14   # Placeholder - to be optimized
+        1: 7,  # Lowered for Jobs and Hiring testing
+        2: 7,  # Lowered for Jobs and Hiring testing
+        3: 7,  # Lowered for Jobs and Hiring testing
+        4: 7   # Lowered for Jobs and Hiring testing
     },
     # Industry types
     "SaaS / Tech": {
@@ -477,6 +477,7 @@ Rule-based filtering - the proven system that worked before.
     def get_last_metrics(self) -> Optional[Dict[str, Any]]:
         """Get metrics from the last filtering operation."""
         return self._last_metrics
+
 
 
 
