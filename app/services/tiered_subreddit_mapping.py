@@ -64,7 +64,7 @@ TIERED_SUBREDDIT_MAPPINGS: Dict[str, Dict[int, List[str]]] = {
     "Jobs and Hiring": {
         1: ["jobs", "jobhunting", "jobsearch"],
         2: ["careers", "resumes", "GetEmployed"],
-        3: ["workonline", "forhire", "Remotework"],
+        3: ["Remotework", "RemoteJobs", "Ukjobs"],
         4: ["Entrepreneur", "smallbusiness", "business"]
     },
     
@@ -196,6 +196,10 @@ def get_tier_info(business_type: str, request_number: int) -> Dict[str, any]:
         "posts_per_subreddit": 500,
         "total_posts": len(subreddits) * 500
     }
+
+
+
+
 
 
 
