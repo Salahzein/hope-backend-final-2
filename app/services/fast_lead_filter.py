@@ -40,10 +40,10 @@ BUSINESS_THRESHOLDS = {
         4: 14
     },
     "Jobs and Hiring": {
-        1: 9,  # Tier 1 tuned per testing feedback
-        2: 8,  # Tier 2 tuned per testing feedback
-        3: 10,  # Tier 3 threshold increased for better quality
-        4: 7   # Keep for now
+        1: 10,  # Minimum threshold set to 10
+        2: 10,  # Minimum threshold set to 10
+        3: 10,  # Minimum threshold set to 10
+        4: 10   # Minimum threshold set to 10
     },
     # Industry types
     "SaaS / Tech": {
@@ -477,6 +477,7 @@ Rule-based filtering - the proven system that worked before.
     def get_last_metrics(self) -> Optional[Dict[str, Any]]:
         """Get metrics from the last filtering operation."""
         return self._last_metrics
+
 
 
 
