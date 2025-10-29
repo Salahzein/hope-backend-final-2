@@ -40,10 +40,10 @@ BUSINESS_THRESHOLDS = {
         4: 14
     },
     "Jobs and Hiring": {
-        1: 7,  # Lowered for Jobs and Hiring testing
-        2: 7,  # Lowered for Jobs and Hiring testing
-        3: 7,  # Lowered for Jobs and Hiring testing
-        4: 7   # Lowered for Jobs and Hiring testing
+        1: 9,  # Tier 1 tuned per testing feedback
+        2: 8,  # Tier 2 tuned per testing feedback
+        3: 7,  # Keep for now
+        4: 7   # Keep for now
     },
     # Industry types
     "SaaS / Tech": {
