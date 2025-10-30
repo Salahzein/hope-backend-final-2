@@ -40,10 +40,10 @@ BUSINESS_THRESHOLDS = {
         4: 14
     },
     "Jobs and Hiring": {
-        1: 9,   # Tier 1 tuned per testing feedback
-        2: 8,   # Tier 2 tuned per testing feedback
+        1: 9,  # Tier 1 tuned per testing feedback
+        2: 8,  # Tier 2 tuned per testing feedback
         3: 10,  # Tier 3 threshold increased for better quality
-        4: 10   # Tier 4 threshold increased to minimum 10
+        4: 7   # Keep for now
     },
     # Industry types
     "SaaS / Tech": {
