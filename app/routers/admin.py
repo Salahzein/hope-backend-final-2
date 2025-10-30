@@ -87,40 +87,7 @@ async def get_user_metrics(
         logger.error(f"Error getting user metrics: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/users")
-async def get_all_users(db: Session = Depends(get_db)):
-    """Get list of all users with their usage summary"""
-    try:
-        users = db.query(User).all()
-        
-        user_list = []
-        for user in users:
-            usage_summary = get_user_usage_summary(user.results_used, user.posts_analyzed)
-            
-            user_list.append({
-                "id": user.id,
-                "email": user.email,
-                "name": user.name,
-                "company": user.company,
-                "created_at": user.created_at.isoformat() if user.created_at else None,
-                "usage": usage_summary,
-                "total_tokens_used": user.total_tokens_used,
-                "total_cost": round(user.total_cost, 4),
-                "is_active": user.is_active
-            })
-        
-        # Sort by total cost (highest first)
-        user_list.sort(key=lambda x: x["total_cost"], reverse=True)
-        
-        return {
-            "success": True,
-            "total_users": len(user_list),
-            "users": user_list
-        }
-        
-    except Exception as e:
-        logger.error(f"Error getting users: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+# Removed unguarded /users route; guarded version below is the authoritative admin-only endpoint
 
 @router.get("/searches/recent")
 async def get_recent_searches(
@@ -342,3 +309,4 @@ async def get_beta_codes(
     except Exception as e:
         logger.error(f"Error getting beta codes: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
