@@ -8,7 +8,7 @@ from app.services.ai_enhancer import AIEnhancer, EnhancedQuery
 from app.services.openai_service import OpenAIService, AIAnalysisResult
 from app.services.simple_lead_filter import SimpleLeadFilter
 from app.core.ai_config import get_ai_config
-from app.services.business_mapping import BUSINESS_MAPPINGS, INDUSTRY_MAPPINGS
+from app.services.business_mapping_hyperfocus import BUSINESS_MAPPINGS, INDUSTRY_MAPPINGS
 
 logger = logging.getLogger(__name__)
 
@@ -403,6 +403,10 @@ class LeadFilter:
             snippet = snippet + "..."
         
         return snippet
+
+
+        
+
 
 
         
