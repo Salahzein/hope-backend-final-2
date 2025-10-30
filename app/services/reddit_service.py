@@ -5,7 +5,7 @@ import random
 from typing import List, Dict, Any, Optional
 from concurrent.futures import ThreadPoolExecutor
 from app.core.config import settings
-from app.services.business_mapping import get_subreddits_for_business, get_subreddits_for_industry
+from app.services.business_mapping_hyperfocus import get_subreddits_for_business, get_subreddits_for_industry
 
 logger = logging.getLogger(__name__)
 
@@ -346,6 +346,13 @@ class RedditService:
         
         logger.info(f"🕒 TIME FILTER: {len(posts)} posts -> {len(filtered_posts)} posts (time_range: {time_range})")
         return filtered_posts
+
+
+
+
+
+
+
 
 
 
