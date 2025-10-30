@@ -6,9 +6,9 @@ logger = logging.getLogger(__name__)
 # TIERED SUBREDDIT MAPPINGS - 4 Tiers per business/industry
 # Tier 1 = Most relevant, Tier 4 = Less relevant
 TIERED_SUBREDDIT_MAPPINGS: Dict[str, Dict[int, List[str]]] = {
-    # Business Types
+    # Business Types (live only)
     "SaaS Companies": {
-        1: ["SaaS", "startups", "Entrepreneur"],  # Most relevant (PRIMARY)
+        1: ["SaaS", "startups", "Entrepreneur"],
         2: ["IndieHackers", "microSaaS", "EntrepreneurRideAlong"],
         3: ["smallbusiness", "Entrepreneur", "business"],
         4: ["business", "startup_ideas", "entrepreneurridealong"]
@@ -25,42 +25,6 @@ TIERED_SUBREDDIT_MAPPINGS: Dict[str, Dict[int, List[str]]] = {
         3: ["marketing", "SEO", "digital_marketing"],
         4: ["business", "freelance", "entrepreneur"]
     },
-    "Marketing Agencies": {
-        1: ["marketing", "SEO", "digital_marketing"],
-        2: ["PPC", "socialmedia", "content_marketing"],
-        3: ["Entrepreneur", "business", "smallbusiness"],
-        4: ["freelance", "forhire", "webdev"]
-    },
-    "Freelance Designers": {
-        1: ["freelance", "graphic_design", "Design"],
-        2: ["DesignCritiques", "web_design", "UI_Design"],
-        3: ["Entrepreneur", "smallbusiness", "marketing"],
-        4: ["forhire", "workonline", "careers"]
-    },
-    "Coffee Shops / Cafés": {
-        1: ["CoffeeShopOwners", "Coffee", "Barista"],
-        2: ["smallbusiness", "Entrepreneur", "restaurant"],
-        3: ["marketing", "SEO", "LocalSEO"],
-        4: ["business", "finance", "investing"]
-    },
-    "Online Course Creators": {
-        1: ["online_instructors", "InstructionalDesign", "edtech"],
-        2: ["Entrepreneur", "marketing", "digital_marketing"],
-        3: ["business", "smallbusiness", "SEO"],
-        4: ["webdev", "web_design", "content_marketing"]
-    },
-    "Local Service Businesses": {
-        1: ["smallbusiness", "Entrepreneur", "LocalSEO"],
-        2: ["marketing", "SEO", "PPC"],
-        3: ["business", "finance", "investing"],
-        4: ["webdev", "web_design", "forhire"]
-    },
-    "Consultants / Coaches": {
-        1: ["consulting", "Coaching", "Entrepreneur"],
-        2: ["business", "smallbusiness", "marketing"],
-        3: ["freelance", "forhire", "careers"],
-        4: ["webdev", "web_design", "content_marketing"]
-    },
     "Jobs and Hiring": {
         1: ["jobs", "jobhunting", "jobsearch"],
         2: ["careers", "resumes", "GetEmployed"],
@@ -68,7 +32,7 @@ TIERED_SUBREDDIT_MAPPINGS: Dict[str, Dict[int, List[str]]] = {
         4: ["careerguidance", "jobsearchhacks", "Unemployment"]
     },
     
-    # Industry Types
+    # Industry Types (live only)
     "SaaS / Tech": {
         1: ["SaaS", "startups", "Entrepreneur"],
         2: ["IndieHackers", "microSaaS", "EntrepreneurRideAlong"],
@@ -80,48 +44,6 @@ TIERED_SUBREDDIT_MAPPINGS: Dict[str, Dict[int, List[str]]] = {
         2: ["AmazonSeller", "Entrepreneur", "smallbusiness"],
         3: ["marketing", "SEO", "digital_marketing"],
         4: ["business", "freelance", "entrepreneur"]
-    },
-    "Marketing & Advertising": {
-        1: ["marketing", "SEO", "digital_marketing"],
-        2: ["PPC", "socialmedia", "content_marketing"],
-        3: ["Entrepreneur", "business", "smallbusiness"],
-        4: ["freelance", "forhire", "webdev"]
-    },
-    "Education / Edtech": {
-        1: ["online_instructors", "InstructionalDesign", "edtech"],
-        2: ["Entrepreneur", "marketing", "digital_marketing"],
-        3: ["business", "smallbusiness", "SEO"],
-        4: ["webdev", "web_design", "content_marketing"]
-    },
-    "Food & Beverage": {
-        1: ["CoffeeShopOwners", "Coffee", "Barista"],
-        2: ["smallbusiness", "Entrepreneur", "restaurant"],
-        3: ["marketing", "SEO", "LocalSEO"],
-        4: ["business", "finance", "investing"]
-    },
-    "Local Services": {
-        1: ["smallbusiness", "Entrepreneur", "LocalSEO"],
-        2: ["marketing", "SEO", "PPC"],
-        3: ["business", "finance", "investing"],
-        4: ["webdev", "web_design", "forhire"]
-    },
-    "Finance / Fintech": {
-        1: ["Fintech", "PersonalFinance", "FinancialPlanning"],
-        2: ["investing", "Entrepreneur", "smallbusiness"],
-        3: ["business", "finance", "marketing"],
-        4: ["webdev", "web_design", "forhire"]
-    },
-    "Freelancers / Creatives": {
-        1: ["freelance", "graphic_design", "Design"],
-        2: ["DesignCritiques", "web_design", "UI_Design"],
-        3: ["Entrepreneur", "smallbusiness", "marketing"],
-        4: ["forhire", "workonline", "careers"]
-    },
-    "Consulting / Coaching": {
-        1: ["consulting", "Coaching", "Entrepreneur"],
-        2: ["business", "smallbusiness", "marketing"],
-        3: ["freelance", "forhire", "careers"],
-        4: ["webdev", "web_design", "content_marketing"]
     }
 }
 
@@ -196,6 +118,10 @@ def get_tier_info(business_type: str, request_number: int) -> Dict[str, any]:
         "posts_per_subreddit": 500,
         "total_posts": len(subreddits) * 500
     }
+
+
+
+
 
 
 
