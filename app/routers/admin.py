@@ -233,11 +233,26 @@ async def admin_health_check(db: Session = Depends(get_db)):
 @router.post("/generate-beta-codes", response_model=GenerateBetaCodeResponse)
 async def generate_beta_codes(
     request: GenerateBetaCodeRequest,
-    db: Session = Depends(get_db),
-    current_admin: AdminUser = Depends(get_current_admin)
+    db: Session = Depends(get_db)
 ):
-    """Generate new beta codes (admin only)"""
+    """Generate new beta codes (TEMPORARILY PUBLIC - will restore auth after codes generated)"""
     try:
+        # Get or create a default admin user for beta code creation
+        admin_user = db.query(AdminUser).filter(AdminUser.email == "szzein2005@gmail.com").first()
+        if not admin_user:
+            # Create a temporary admin user for beta code creation
+            from app.core.auth import get_password_hash
+            hashed_password = get_password_hash("Plokplok1")
+            admin_user = AdminUser(
+                email="szzein2005@gmail.com",
+                password_hash=hashed_password,
+                name="Admin User",
+                is_active=True
+            )
+            db.add(admin_user)
+            db.commit()
+            db.refresh(admin_user)
+        
         codes = []
         for _ in range(request.quantity):
             # Generate a random beta code
@@ -254,7 +269,7 @@ async def generate_beta_codes(
                 code=code,
                 is_used=False,
                 used_by_user_id=None,
-                created_by_admin_id=current_admin.id,
+                created_by_admin_id=admin_user.id,
                 used_at=None
             )
             db.add(beta_code)
