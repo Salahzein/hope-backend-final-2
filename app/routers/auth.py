@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import timedelta, datetime
 import os
+import secrets
+import string
 
 from app.database import get_db, User, AdminUser, BetaCode
 from app.models.auth import UserLoginRequest, AuthResponse, UserResponse, UserSignupRequest
@@ -345,3 +347,60 @@ async def reset_admin_user(db: Session = Depends(get_db)):
         print(f"❌ Error resetting admin user: {e}")
         db.rollback()
         return {"message": f"Error resetting admin user: {str(e)}", "status": "error"}
+
+@router.post("/temp-generate-beta-codes")
+async def temp_generate_beta_codes(db: Session = Depends(get_db)):
+    """
+    TEMPORARY: Generate 2 beta codes without admin authentication
+    TODO: Remove this endpoint after admin login is fixed
+    """
+    try:
+        # Find or create a default admin user for beta code creation
+        admin_user = db.query(AdminUser).filter(AdminUser.email == "szzein2005@gmail.com").first()
+        if not admin_user:
+            # Create a temporary admin user for beta code creation
+            hashed_password = get_password_hash("Plokplok1")
+            admin_user = AdminUser(
+                email="szzein2005@gmail.com",
+                password_hash=hashed_password,
+                name="Admin User",
+                is_active=True
+            )
+            db.add(admin_user)
+            db.commit()
+            db.refresh(admin_user)
+        
+        codes = []
+        for _ in range(2):  # Generate 2 beta codes
+            # Generate a random beta code
+            code = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+            code = f"HOPE-{code}"
+            
+            # Ensure code is unique
+            while db.query(BetaCode).filter(BetaCode.code == code).first():
+                code = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+                code = f"HOPE-{code}"
+            
+            # Create beta code
+            beta_code = BetaCode(
+                code=code,
+                is_used=False,
+                used_by_user_id=None,
+                created_by_admin_id=admin_user.id,
+                used_at=None
+            )
+            db.add(beta_code)
+            codes.append(code)
+        
+        db.commit()
+        
+        return {
+            "codes": codes,
+            "message": f"Generated {len(codes)} beta codes successfully",
+            "note": "This is a temporary endpoint - remove after admin login is fixed"
+        }
+        
+    except Exception as e:
+        print(f"❌ Error generating beta codes: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
