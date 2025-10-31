@@ -178,29 +178,29 @@ async def init_admin(db: Session = Depends(get_db)):
     
     print(f"🔧 INIT ADMIN: Attempting to initialize admin user")
     
-    # Check if admin user already exists
-    existing_admin = db.query(AdminUser).filter(AdminUser.email == "szzein2005@gmail.com").first()
-    if existing_admin:
-        return {"message": "Admin user already exists", "status": "success"}
-    
     try:
-        # Create admin user
-        hashed_password = get_password_hash("Plokplok1")
-        admin_user = AdminUser(
-            email="szzein2005@gmail.com",
-            password_hash=hashed_password,
-            name="Salah Zein",
-            is_active=True
-        )
+        # Check if admin user already exists
+        admin_user = db.query(AdminUser).filter(AdminUser.email == "szzein2005@gmail.com").first()
         
-        db.add(admin_user)
-        db.commit()
-        db.refresh(admin_user)
+        if not admin_user:
+            # Create admin user if it doesn't exist
+            hashed_password = get_password_hash("Plokplok1")
+            admin_user = AdminUser(
+                email="szzein2005@gmail.com",
+                password_hash=hashed_password,
+                name="Salah Zein",
+                is_active=True
+            )
+            db.add(admin_user)
+            db.commit()
+            db.refresh(admin_user)
+            print(f"✅ Admin user created successfully: {admin_user.email}")
+        else:
+            print(f"✅ Admin user already exists: {admin_user.email}")
         
-        print(f"✅ Admin user created successfully: {admin_user.email}")
-        
-        # Create initial beta codes
+        # Create initial beta codes (even if admin exists)
         beta_codes = ["ADMIN2024", "HOPE2024", "BETA2024"]
+        created_codes = []
         for code in beta_codes:
             # Check if beta code already exists
             existing_code = db.query(BetaCode).filter(BetaCode.code == code).first()
@@ -211,15 +211,19 @@ async def init_admin(db: Session = Depends(get_db)):
                     created_by_admin_id=admin_user.id
                 )
                 db.add(beta_code)
+                created_codes.append(code)
                 print(f"✅ Beta code created: {code}")
+            else:
+                created_codes.append(code)
+                print(f"✅ Beta code already exists: {code}")
         
         db.commit()
         
         return {
-            "message": "Admin user and beta codes created successfully",
+            "message": "Beta codes retrieved successfully",
             "status": "success",
             "admin_email": "szzein2005@gmail.com",
-            "beta_codes": beta_codes
+            "beta_codes": created_codes
         }
         
     except Exception as e:
