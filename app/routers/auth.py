@@ -2,8 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import timedelta, datetime
 import os
-import secrets
-import string
 
 from app.database import get_db, User, AdminUser, BetaCode
 from app.models.auth import UserLoginRequest, AuthResponse, UserResponse, UserSignupRequest
@@ -178,29 +176,29 @@ async def init_admin(db: Session = Depends(get_db)):
     
     print(f"🔧 INIT ADMIN: Attempting to initialize admin user")
     
+    # Check if admin user already exists
+    existing_admin = db.query(AdminUser).filter(AdminUser.email == "szzein2005@gmail.com").first()
+    if existing_admin:
+        return {"message": "Admin user already exists", "status": "success"}
+    
     try:
-        # Check if admin user already exists
-        admin_user = db.query(AdminUser).filter(AdminUser.email == "szzein2005@gmail.com").first()
+        # Create admin user
+        hashed_password = get_password_hash("Plokplok1")
+        admin_user = AdminUser(
+            email="szzein2005@gmail.com",
+            password_hash=hashed_password,
+            name="Salah Zein",
+            is_active=True
+        )
         
-        if not admin_user:
-            # Create admin user if it doesn't exist
-            hashed_password = get_password_hash("Plokplok1")
-            admin_user = AdminUser(
-                email="szzein2005@gmail.com",
-                password_hash=hashed_password,
-                name="Salah Zein",
-                is_active=True
-            )
-            db.add(admin_user)
-            db.commit()
-            db.refresh(admin_user)
-            print(f"✅ Admin user created successfully: {admin_user.email}")
-        else:
-            print(f"✅ Admin user already exists: {admin_user.email}")
+        db.add(admin_user)
+        db.commit()
+        db.refresh(admin_user)
         
-        # Create initial beta codes (even if admin exists)
+        print(f"✅ Admin user created successfully: {admin_user.email}")
+        
+        # Create initial beta codes
         beta_codes = ["ADMIN2024", "HOPE2024", "BETA2024"]
-        created_codes = []
         for code in beta_codes:
             # Check if beta code already exists
             existing_code = db.query(BetaCode).filter(BetaCode.code == code).first()
@@ -211,19 +209,15 @@ async def init_admin(db: Session = Depends(get_db)):
                     created_by_admin_id=admin_user.id
                 )
                 db.add(beta_code)
-                created_codes.append(code)
                 print(f"✅ Beta code created: {code}")
-            else:
-                created_codes.append(code)
-                print(f"✅ Beta code already exists: {code}")
         
         db.commit()
         
         return {
-            "message": "Beta codes retrieved successfully",
+            "message": "Admin user and beta codes created successfully",
             "status": "success",
             "admin_email": "szzein2005@gmail.com",
-            "beta_codes": created_codes
+            "beta_codes": beta_codes
         }
         
     except Exception as e:
@@ -351,60 +345,3 @@ async def reset_admin_user(db: Session = Depends(get_db)):
         print(f"❌ Error resetting admin user: {e}")
         db.rollback()
         return {"message": f"Error resetting admin user: {str(e)}", "status": "error"}
-
-@router.post("/temp-generate-beta-codes")
-async def temp_generate_beta_codes(db: Session = Depends(get_db)):
-    """
-    TEMPORARY: Generate 2 beta codes without admin authentication
-    TODO: Remove this endpoint after admin login is fixed
-    """
-    try:
-        # Find or create a default admin user for beta code creation
-        admin_user = db.query(AdminUser).filter(AdminUser.email == "szzein2005@gmail.com").first()
-        if not admin_user:
-            # Create a temporary admin user for beta code creation
-            hashed_password = get_password_hash("Plokplok1")
-            admin_user = AdminUser(
-                email="szzein2005@gmail.com",
-                password_hash=hashed_password,
-                name="Admin User",
-                is_active=True
-            )
-            db.add(admin_user)
-            db.commit()
-            db.refresh(admin_user)
-        
-        codes = []
-        for _ in range(2):  # Generate 2 beta codes
-            # Generate a random beta code
-            code = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
-            code = f"HOPE-{code}"
-            
-            # Ensure code is unique
-            while db.query(BetaCode).filter(BetaCode.code == code).first():
-                code = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
-                code = f"HOPE-{code}"
-            
-            # Create beta code
-            beta_code = BetaCode(
-                code=code,
-                is_used=False,
-                used_by_user_id=None,
-                created_by_admin_id=admin_user.id,
-                used_at=None
-            )
-            db.add(beta_code)
-            codes.append(code)
-        
-        db.commit()
-        
-        return {
-            "codes": codes,
-            "message": f"Generated {len(codes)} beta codes successfully",
-            "note": "This is a temporary endpoint - remove after admin login is fixed"
-        }
-        
-    except Exception as e:
-        print(f"❌ Error generating beta codes: {e}")
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
