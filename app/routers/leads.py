@@ -303,6 +303,78 @@ async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "service": "leads"}
 
+@router.get("/debug/modules-check")
+async def debug_modules_check():
+    """Debug endpoint to check what modules/files exist in deployed container"""
+    import os
+    import sys
+    
+    checks = {
+        "status": "checking",
+        "module_imports": {},
+        "file_exists": {},
+        "import_errors": []
+    }
+    
+    # Check if modules can be imported
+    modules_to_check = [
+        "app.services.business_mapping",
+        "app.services.business_mapping_hyperfocus",
+        "app.services.reddit_service",
+        "app.services.reddit_service_clean"
+    ]
+    
+    for module_name in modules_to_check:
+        try:
+            module = __import__(module_name, fromlist=[''])
+            checks["module_imports"][module_name] = {
+                "status": "success",
+                "file": getattr(module, '__file__', 'unknown')
+            }
+        except ImportError as e:
+            checks["module_imports"][module_name] = {
+                "status": "failed",
+                "error": str(e)
+            }
+            checks["import_errors"].append(f"{module_name}: {str(e)}")
+        except Exception as e:
+            checks["module_imports"][module_name] = {
+                "status": "error",
+                "error": str(e)
+            }
+    
+    # Check if files exist on disk
+    service_paths = [
+        "app/services/business_mapping.py",
+        "app/services/business_mapping_hyperfocus.py",
+        "app/services/reddit_service.py",
+        "app/services/reddit_service_clean.py"
+    ]
+    
+    for file_path in service_paths:
+        full_path = os.path.join(os.getcwd(), file_path)
+        checks["file_exists"][file_path] = os.path.exists(full_path)
+    
+    # Check reddit_service.py import statement
+    try:
+        reddit_service_path = os.path.join(os.getcwd(), "app/services/reddit_service.py")
+        if os.path.exists(reddit_service_path):
+            with open(reddit_service_path, 'r') as f:
+                content = f.read()
+                if "from app.services.business_mapping_hyperfocus import" in content:
+                    checks["reddit_service_import"] = "correct (hyperfocus)"
+                elif "from app.services.business_mapping import" in content:
+                    checks["reddit_service_import"] = "wrong (old mapping)"
+                else:
+                    checks["reddit_service_import"] = "unknown"
+        else:
+            checks["reddit_service_import"] = "file_not_found"
+    except Exception as e:
+        checks["reddit_service_import"] = f"error: {str(e)}"
+    
+    checks["status"] = "complete"
+    return checks
+
 @router.get("/debug/tiered-system")
 async def debug_tiered_system():
     """Debug endpoint to test tiered system"""
@@ -368,5 +440,6 @@ async def debug_ai_config():
             "error": str(e),
             "message": "Debug config error"
         }
+
 
 
