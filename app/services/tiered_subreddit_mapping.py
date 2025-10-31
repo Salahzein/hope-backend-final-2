@@ -100,7 +100,7 @@ def reset_user_request_count(user_id: str):
 
 def get_tier_info(business_type: str, request_number: int) -> Dict[str, any]:
     """Get tier information including subreddits and quality note"""
-    tier = min(request_number, 4)
+    tier = ((request_number - 1) % 4) + 1
     subreddits = get_tiered_subreddits(business_type, request_number)
     
     quality_notes = {
@@ -118,6 +118,10 @@ def get_tier_info(business_type: str, request_number: int) -> Dict[str, any]:
         "posts_per_subreddit": 500,
         "total_posts": len(subreddits) * 500
     }
+
+
+
+
 
 
 
