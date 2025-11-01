@@ -81,6 +81,31 @@ class SearchMetrics(Base):
 def create_tables():
     Base.metadata.create_all(bind=engine)
 
+# Migration function to add missing columns
+def migrate_database():
+    """Add missing columns to existing tables if they don't exist"""
+    from sqlalchemy import inspect, text
+    
+    db = SessionLocal()
+    try:
+        inspector = inspect(engine)
+        columns = [col['name'] for col in inspector.get_columns('users')]
+        
+        # Check and add last_search_time column if missing
+        if 'last_search_time' not in columns:
+            print("🔄 MIGRATION: Adding missing column 'last_search_time' to users table...")
+            db.execute(text("ALTER TABLE users ADD COLUMN last_search_time REAL DEFAULT 0.0"))
+            db.commit()
+            print("✅ MIGRATION: Successfully added 'last_search_time' column")
+        else:
+            print("✅ MIGRATION: Column 'last_search_time' already exists")
+            
+    except Exception as e:
+        print(f"⚠️ MIGRATION WARNING: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
 # Dependency to get database session
 def get_db():
     db = SessionLocal()
@@ -92,6 +117,7 @@ def get_db():
 # Initialize database with admin user
 def init_database():
     create_tables()
+    migrate_database()  # Run migrations after creating tables
     
     from sqlalchemy.orm import Session
     from app.core.auth import get_password_hash
