@@ -121,8 +121,17 @@ async def signup(request: UserSignupRequest, db: Session = Depends(get_db)):
         )
     
     # Validate beta code
+    print(f"🔍 SIGNUP DEBUG: Received beta code: '{request.beta_code}'")
+    
+    # Debug: List all beta codes in database
+    all_codes = db.query(BetaCode).all()
+    print(f"🔍 SIGNUP DEBUG: All beta codes in database:")
+    for bc in all_codes:
+        print(f"  - Code: '{bc.code}' | Used: {bc.is_used} | User ID: {bc.used_by_user_id}")
+    
     beta_code = db.query(BetaCode).filter(BetaCode.code == request.beta_code).first()
     if not beta_code:
+        print(f"❌ SIGNUP DEBUG: Beta code '{request.beta_code}' not found in database")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid beta code"
