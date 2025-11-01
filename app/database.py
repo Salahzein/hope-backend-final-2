@@ -94,17 +94,17 @@ def init_database():
     create_tables()
     
     from sqlalchemy.orm import Session
-    from .auth import hash_password
+    from app.core.auth import get_password_hash
     
     db = SessionLocal()
     try:
         # Check if admin user already exists
         admin_user = db.query(AdminUser).filter(AdminUser.email == "szzein2005@gmail.com").first()
         if not admin_user:
-            # Create admin user
+            # Create admin user with consistent password hashing
             admin_user = AdminUser(
                 email="szzein2005@gmail.com",
-                password_hash=hash_password("Plokplok1"),
+                password_hash=get_password_hash("Plokplok1"),
                 name="Admin User",
                 is_active=True
             )
@@ -112,7 +112,12 @@ def init_database():
             db.commit()
             print("✅ Admin user created successfully")
         else:
-            print("✅ Admin user already exists")
+            # Reset admin password to ensure it uses correct hashing method
+            print("✅ Admin user already exists - resetting password hash for consistency")
+            admin_user.password_hash = get_password_hash("Plokplok1")
+            admin_user.is_active = True
+            db.commit()
+            print("✅ Admin password hash updated successfully")
             
         # Start with 0 beta codes - admin will generate them as needed
         existing_codes = db.query(BetaCode).count()
@@ -123,3 +128,4 @@ def init_database():
         db.rollback()
     finally:
         db.close()
+
